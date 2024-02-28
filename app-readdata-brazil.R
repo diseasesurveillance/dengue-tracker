@@ -29,3 +29,10 @@ dmap <- fnSetTimeLocVariablesDataMap(d, map, dmapvbles)
 d <- dmap[[1]]
 map <- dmap[[2]]
 
+state_code <- map |> select(cod_stt, abbrv_s)
+
+state_code <- tibble(
+  names = names(state_code$cod_stt),
+  state_n = unlist(state_code$cod_stt),
+  short = unlist(state_code$abbrv_s)
+) |> unique()

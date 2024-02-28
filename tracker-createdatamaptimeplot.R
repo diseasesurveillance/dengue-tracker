@@ -45,3 +45,47 @@ fnTimeplot <- function(dF){
   # %>% add_event_marker(as.Date(input$selectTime), y = 0)
   
 }
+
+plot_trends_data <- function(merged_data, uf) {
+  title <- sprintf("Number of cases in %s", uf)
+  fig <- ggplot(merged_data, aes(x = ew_start)) +
+    geom_line(aes(y = sum_of_cases, group = 1, colour = "Number of Cases \n (subject to delays)"),linewidth=1) +
+    geom_line(aes(y = prediction, group = 1, colour = "Corrected estimate"),linewidth=1) +
+    labs(x = "Week", y = "Total Number of Weekly Cases") +
+    scale_colour_manual("", 
+                        breaks = c("Number of Cases \n (subject to delays)", "Corrected estimate"),
+                        values = c("Number of Cases \n (subject to delays)" = "#004D40", "Corrected estimate" = "#D81B60")) +
+    theme(axis.text.x = element_text(size=18), legend.text = element_text(size = 14),legend.title = element_text( size = 16,face="bold"),axis.title=element_text(size=18),plot.title = element_text(size=12))+
+    theme_bw()+
+    scale_x_date(date_breaks = "3 month",
+                 date_labels = "%m/%y")+
+    geom_ribbon(aes(ymin=lwr, ymax=upr),
+                fill = "#D81B60", linetype=2, alpha=0.3)+
+    theme(legend.position = c(.2, .9),
+          legend.key.size = unit(1.2,"line"),
+          legend.key.width= unit(2, 'line'),
+          legend.text=element_text(size=16),
+          axis.text.x  = element_text(size = 12), 
+          axis.title = element_text(size = 12), 
+          panel.grid.minor = element_blank(), 
+          axis.line = element_line(colour = "black"), 
+          panel.border = element_blank(), 
+          panel.grid.major.x = element_blank(), 
+          panel.grid.major.y = element_line(color = "gray79",
+                                            size = 0.25, 
+                                            linetype = 4))+
+    coord_cartesian(expand = FALSE) +
+    scale_y_continuous(labels = scales::comma)+
+    ggtitle(title)
+  ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
+  return(fig)
+}
+
+render_files <- function(folder_root_directory) {
+  rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$", full.names = TRUE)
+  for (file in rmd_files) {
+    filename <- tools::file_path_sans_ext(basename(file))
+    setwd(folder_root_directory)
+    rmarkdown::render(input = file, output_file = paste0("../docs/", filename, ".html"))
+  }
+} 

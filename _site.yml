@@ -8,10 +8,60 @@ navbar:
       href: index.html
     - text: "More"
       menu:
-        - text: "Rondônia"
-          href: dengue-report-11.html
-        - text: "Acre"
-          href: dengue-report-12.html  
+      - text: "Rondônia"
+        href: dengue-report-11.html
+      - text: "Acre"
+        href: dengue-report-12.html
+      - text: "Amazonas"
+        href: dengue-report-13.html
+      - text: "Roraima"
+        href: dengue-report-14.html
+      - text: "Pará"
+        href: dengue-report-15.html
+      - text: "Amapá"
+        href: dengue-report-16.html
+      - text: "Tocantins"
+        href: dengue-report-17.html
+      - text: "Maranhão"
+        href: dengue-report-21.html
+      - text: "Piauí"
+        href: dengue-report-22.html
+      - text: "Ceará"
+        href: dengue-report-23.html
+      - text: "Rio Grande do Norte"
+        href: dengue-report-24.html
+      - text: "Paraíba"
+        href: dengue-report-25.html
+      - text: "Pernambuco"
+        href: dengue-report-26.html
+      - text: "Alagoas"
+        href: dengue-report-27.html
+      - text: "Sergipe"
+        href: dengue-report-28.html
+      - text: "Bahia"
+        href: dengue-report-29.html
+      - text: "Minas Gerais"
+        href: dengue-report-31.html
+      - text: "Espírito Santo"
+        href: dengue-report-32.html
+      - text: "Rio de Janeiro"
+        href: dengue-report-33.html
+      - text: "São Paulo"
+        href: dengue-report-35.html
+      - text: "Paraná"
+        href: dengue-report-41.html
+      - text: "Santa Catarina"
+        href: dengue-report-42.html
+      - text: "Rio Grande do Sul"
+        href: dengue-report-43.html
+      - text: "Mato Grosso do Sul"
+        href: dengue-report-50.html
+      - text: "Mato Grosso"
+        href: dengue-report-51.html
+      - text: "Goiás"
+        href: dengue-report-52.html
+      - text: "Distrito Federal"
+        href: dengue-report-53.html
     - text: "About"
       href: about.html      
 output:
