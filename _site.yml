@@ -1,0 +1,20 @@
+name: "dengue-tracker"
+output_dir: "docs"
+exclude: ["data", "map"]
+navbar:
+  title: "Dengue tracker"
+  right:
+    - text: "Home"
+      href: index.html
+    - text: "More"
+      menu:
+        - text: "Rondônia"
+          href: dengue-report-11.html
+        - text: "Acre"
+          href: dengue-report-12.html  
+    - text: "About"
+      href: about.html      
+output:
+  html_document:
+    theme: cosmo
+    highlight: textmate
