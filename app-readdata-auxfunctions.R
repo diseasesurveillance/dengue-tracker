@@ -54,6 +54,7 @@ library(plotly)
 library(viridis)
 library(shinyWidgets) # library("shinyWidgets")
 library(quantreg)
+library(lubridate)
 #library(INLA)
 #library(spdep)
 
@@ -97,6 +98,22 @@ fnSetTimeLocVariablesDataMap <- function(d, map, dmapvbles){
   
 }
 
+
+download_infodengue_data <- function(brazil_ufs) {
+  last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
+  
+  for (uf in brazil_ufs) {
+    
+    infodengue_data <- denguetracker::fetch_data_from_state(uf,
+                                                            ey_start=2018,
+                                                            ey_end=2024)
+    filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
+    file_path <- paste0("data/weekly_data/infodengue/",filename)
+    write.csv(infodengue_data, file_path, row.names = F)
+    cat("\nSuccessfully saved ", filename, "\n")
+    
+  }
+}
 
 process_data <- function(uf, last_ew_start) {
   gt_filename <- sprintf("data/weekly_data/gtrends/%s_trends.csv", uf)
