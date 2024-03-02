@@ -53,6 +53,7 @@ library(vroom)
 library(plotly)
 library(viridis)
 library(shinyWidgets) # library("shinyWidgets")
+library(quantreg)
 #library(INLA)
 #library(spdep)
 
@@ -133,7 +134,7 @@ process_data <- function(uf, last_ew_start) {
 }
 
 
-run_model <- function(merged_data, topics, log) {
+run_model <- function(merged_data, topics, log, K=5, gamma=0.95) {
   if(log) {
     merged_data_log <- merged_data
     merged_data_log$sum_of_cases <- log(merged_data$sum_of_cases+1)
@@ -155,14 +156,29 @@ run_model <- function(merged_data, topics, log) {
   }
   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
   best_linear_transform <- lm(as.formula(formula_str),
-                              merged_data[1:(nrow(merged_data)-5),])
+                              merged_data[1:(nrow(merged_data)-K),])
   prediction <- predict(best_linear_transform,merged_data)
   
-  error <- abs(prediction[1:(nrow(merged_data)-5)]-merged_data$sum_of_cases[1:(nrow(merged_data)-5)])
-  quantile_error <- quantile(error,probs=0.95)
-  merged_data$lwr <- prediction-quantile_error
-  merged_data$upr <- prediction+quantile_error
-  merged_data$prediction <- prediction 
+  best_linear_transform_lower <- rq(as.formula(formula_str),
+                                    merged_data[1:(nrow(merged_data)-K),],
+                                    tau=(1-gamma)/2)
+  
+  prediction_lower <- predict(best_linear_transform_lower,merged_data)
+  
+  
+  best_linear_transform_upper <- rq(as.formula(formula_str),
+                                    merged_data[1:(nrow(merged_data)-K),],
+                                    tau=1-(1-gamma)/2)
+  prediction_upper <- predict(best_linear_transform_upper,merged_data)
+  
+  error <- 
+    apply(cbind(prediction_lower[1:(nrow(merged_data)-K)]-merged_data$sum_of_cases[1:(nrow(merged_data)-K)]
+                ,merged_data$sum_of_cases[1:(nrow(merged_data)-K)]-prediction_upper[1:(nrow(merged_data)-K)]),1,max)
+  
+  quantile_error <- quantile(error,probs=0.95,na.rm=T)
+  merged_data$lwr=prediction_lower-quantile_error
+  merged_data$upr=prediction_upper+quantile_error
+  merged_data$prediction=prediction 
   
   return(merged_data)
 }

@@ -30,7 +30,7 @@ inputSelectLoc2 <- 16
 # `r unique(map$nameloc2[which(map$idloc2 == inputSelectLoc2)])`
 
 ```{r, echo = FALSE}
-mapF <- fnMapFiltered(vSelectTime, inputSelectLoc2)
+mapF <- fnMapFiltered(vSelectTime, inputSelectLoc2, inputSelectVble)
 dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in state)
 ```
 
@@ -40,11 +40,13 @@ dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in
 fnLeafletMap(mapF)
 ```
 
+<!---
 ### Dengue and Google trends in each state (now cases each municipality)
 
-```{r, echo = FALSE}
-fnTimeplot(dF)
-```
+ # ```{r, echo = FALSE}
+# fnTimeplot(dF)
+# ```
+-->
 
 ### Using Google Trends to make a corrected estimation of dengue cases
 

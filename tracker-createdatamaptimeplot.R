@@ -1,5 +1,5 @@
 
-fnMapFiltered <- function(vSelectTime, inputSelectLoc2){
+fnMapFiltered <- function(vSelectTime, inputSelectLoc2, inputSelectVble){
   dtime <- d[which(d$idtime == vSelectTime), ]
   map <- left_join(map, dtime, by = c("idloc" = "idloc"))
   map <- map[which(map$idloc2 == inputSelectLoc2), ]
@@ -46,26 +46,41 @@ fnTimeplot <- function(dF){
   
 }
 
-plot_trends_data <- function(merged_data, uf) {
-  title <- sprintf("Number of cases in %s", uf)
-  fig <- ggplot(merged_data, aes(x = ew_start)) +
-    geom_line(aes(y = sum_of_cases, group = 1, colour = "Number of Cases \n (subject to delays)"),linewidth=1) +
-    geom_line(aes(y = prediction, group = 1, colour = "Corrected estimate"),linewidth=1) +
-    labs(x = "Week", y = "Total Number of Weekly Cases") +
-    scale_colour_manual("", 
-                        breaks = c("Number of Cases \n (subject to delays)", "Corrected estimate"),
-                        values = c("Number of Cases \n (subject to delays)" = "#004D40", "Corrected estimate" = "#D81B60")) +
-    theme(axis.text.x = element_text(size=18), legend.text = element_text(size = 14),legend.title = element_text( size = 16,face="bold"),axis.title=element_text(size=18),plot.title = element_text(size=12))+
-    theme_bw()+
-    scale_x_date(date_breaks = "3 month",
-                 date_labels = "%m/%y")+
-    geom_ribbon(aes(ymin=lwr, ymax=upr),
+plot_trends_data <- function(merged_data, uf, K=5) {
+  date_no_delay <- merged_data[nrow(merged_data)-K,]$ew_start
+  
+  fig <- ggplot(merged_data) +
+    geom_line(aes(x=ew_start,y = sum_of_cases, group = 1, 
+                  colour = "Reported Cases \n (subject to delays)"),
+              size=1) +
+    geom_line(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = ew_start,y = prediction, 
+                                                                       group = 1, color = "Fitted Model"),linetype=1, size = .5) +
+    geom_ribbon(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = ew_start,ymin=lwr, ymax=upr),
+                linetype=2, size = .5,alpha=0.1,fill = "#004D40",color="#1E88E5")+
+    geom_line(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = ew_start,y = prediction, 
+                                                                       group = 1, color = "Corrected Estimate"),size=1) +
+    geom_ribbon(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = ew_start,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
-    theme(legend.position = c(.2, .9),
+    labs(x = "", y = "Total Number of Weekly Cases") +
+    theme(axis.text.x = element_text(size=18), legend.text = element_text(size = 14),
+          legend.title = element_text( size = 16,face="bold"),
+          axis.title=element_text(size=18),plot.title = element_text(size=12))+
+    theme_bw()+
+    #scale_x_date(break.vec, date_labels = "%m/%y")+
+    scale_x_date(date_breaks = "3 month",
+                 date_labels = "%b/%y")+
+    #scale_fill_manual(values = c("fitted" = "#004D40")) + 
+    scale_colour_manual("", 
+                        breaks = c("Reported Cases \n (subject to delays)", "Corrected Estimate","Fitted Model"),
+                        values = c("Reported Cases \n (subject to delays)" = "#004D40", 
+                                   "Corrected Estimate" = "#D81B60",
+                                   "Fitted Model"="#1E88E5")) +
+    theme(legend.position = c(.1, .9),
           legend.key.size = unit(1.2,"line"),
           legend.key.width= unit(2, 'line'),
-          legend.text=element_text(size=16),
-          axis.text.x  = element_text(size = 12), 
+          legend.text=element_text(size=12),
+          axis.text.x = element_text(size = 12, angle = 45, colour = "black",
+                                     vjust = 1, hjust = 1), 
           axis.title = element_text(size = 12), 
           panel.grid.minor = element_blank(), 
           axis.line = element_line(colour = "black"), 
@@ -74,9 +89,10 @@ plot_trends_data <- function(merged_data, uf) {
           panel.grid.major.y = element_line(color = "gray79",
                                             size = 0.25, 
                                             linetype = 4))+
-    coord_cartesian(expand = FALSE) +
+    coord_cartesian(expand = FALSE) +  
     scale_y_continuous(labels = scales::comma)+
-    ggtitle(title)
+    ggtitle(paste0("Dengue in the state of São Paulo (Brazil)\nLast updated using reported cases until ",
+                   max(merged_data$ew_start)))
   ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
   return(fig)
 }
