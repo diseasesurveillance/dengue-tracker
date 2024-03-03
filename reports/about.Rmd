@@ -22,7 +22,7 @@ We compute prediction sets via conformal inference.
 2.  **Flexibility of Models:**
     -   Is it beneficial to explore more flexible models?
 3.  **Prediction Interval Flexibility:**
-    -   (Already implemented in this file; Guilherme will extend it to the other regions) Currently, our prediction sets have a fixed length, which might not always be optimal. We could investigate alternative approaches like Conformalized Quantile Regression ([CQR](https://proceedings.neurips.cc/paper_files/paper/2019/hash/5103c3584b063c431bd1268e9b5e76fb-Abstract.html)), which allows for more adaptable prediction intervals.
+    -   Currently, our prediction sets have a fixed length, which might not always be optimal. We could investigate alternative approaches like Conformalized Quantile Regression ([CQR](https://proceedings.neurips.cc/paper_files/paper/2019/hash/5103c3584b063c431bd1268e9b5e76fb-Abstract.html)), which allows for more adaptable prediction intervals.
     
 ### Example of Result
 
