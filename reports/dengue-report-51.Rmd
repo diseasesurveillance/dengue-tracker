@@ -34,12 +34,6 @@ mapF <- fnMapFiltered(vSelectTime, inputSelectLoc2, inputSelectVble)
 dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in state)
 ```
 
-### Cases each municipality last time (the numbers are not correct - this is just a MVP)
-
-```{r map-plot, fig.align = 'center', echo = FALSE}
-fnLeafletMap(mapF)
-```
-
 <!---
 ### Dengue and Google trends in each state (now cases each municipality)
 
@@ -48,7 +42,7 @@ fnLeafletMap(mapF)
 # ```
 -->
 
-### Using Google Trends to make a corrected estimation of dengue cases
+### Corrected number of dengue cases via Google trends
 
 ```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'center', echo = FALSE}
 state <- state_code |>
@@ -62,3 +56,14 @@ data <- generate_data(brazil_ufs, log=F) |>
 plot_trends_data(data, state)
 ```
 
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+### Cases each municipality last time (the numbers are not correct - this is just a MVP)
+
+```{r map-plot, fig.align = 'center', echo = FALSE}
+fnLeafletMap(mapF)
+```
