@@ -588,29 +588,6 @@ least squares. Then, we estimate <span class="math inline">\(Y_{l,t}\)</span> fo
 squares estimates.</p>
 <p>We compute prediction sets via conformal inference.</p>
 </div>
-<div id="possible-improvements" class="section level3">
-<h3>Possible Improvements:</h3>
-<ol style="list-style-type: decimal">
-<li><strong>Hierarchical Estimation of Parameters:</strong>
-<ul>
-<li>For locations with low search volumes, can we estimate <span class="math inline">\(\beta\)</span> parameters using a hierarchical
-approach that considers location-specific characteristics? This method
-could potentially improve our model’s accuracy by leveraging shared
-information across similar locations.</li>
-</ul></li>
-<li><strong>Flexibility of Models:</strong>
-<ul>
-<li>Is it beneficial to explore more flexible models?</li>
-</ul></li>
-<li><strong>Prediction Interval Flexibility:</strong>
-<ul>
-<li>Currently, our prediction sets have a fixed length, which might not
-always be optimal. We could investigate alternative approaches like
-Conformalized Quantile Regression (<a href="https://proceedings.neurips.cc/paper_files/paper/2019/hash/5103c3584b063c431bd1268e9b5e76fb-Abstract.html">CQR</a>),
-which allows for more adaptable prediction intervals.</li>
-</ul></li>
-</ol>
-</div>
 <div id="example-of-result" class="section level3">
 <h3>Example of Result</h3>
 <p>The red curve is the predicted region. The model is trained using all

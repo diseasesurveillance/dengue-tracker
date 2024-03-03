@@ -8,8 +8,6 @@ fnMapFiltered <- function(vSelectTime, inputSelectLoc2, inputSelectVble) {
 }
 
 
-
-
 fnLeafletMap <- function(mapF) {
   labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
 
@@ -38,13 +36,12 @@ fnDFiltered <- function(inputSelectVble, mapF) {
   return(dFiltered)
 }
 
+
 fnTimeplot <- function(dF) {
   dF <- dF[order(dF$idtime), ]
   apex(dF, aes(x = idtime, y = vble, group = idloc), type = "line") # %>%
-  # ax_colors(c("#8485854D", "#FF0000")) %>% ax_stroke(width = c(3, 2))%>%
-  #  ax_fill(opacity = 1, type = "solid")
-  # %>% add_event_marker(as.Date(input$selectTime), y = 0)
 }
+
 
 plot_trends_data <- function(merged_data, uf, K = 5) {
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
@@ -80,12 +77,10 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
       axis.title = element_text(size = 18), plot.title = element_text(size = 12)
     ) +
     theme_bw() +
-    # scale_x_date(break.vec, date_labels = "%m/%y")+
     scale_x_date(
       date_breaks = "2 month",
       date_labels = "%b/%y"
     ) +
-    # scale_fill_manual(values = c("fitted" = "#004D40")) +
     scale_colour_manual("",
       breaks = c("Reported Cases \n (subject to delays)", "Corrected Estimate", "Fitted Model"),
       values = c(
@@ -123,6 +118,7 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
   ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
   return(fig)
 }
+
 
 render_files <- function(folder_root_directory) {
   rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$", full.names = TRUE)

@@ -15,15 +15,6 @@ We fit the model independently for each location $l$ using all data points with 
 
 We compute prediction sets via conformal inference.
 
-### Possible Improvements:
-
-1.  **Hierarchical Estimation of Parameters:**
-    -   For locations with low search volumes, can we estimate $\beta$ parameters using a hierarchical approach that considers location-specific characteristics? This method could potentially improve our model's accuracy by leveraging shared information across similar locations.
-2.  **Flexibility of Models:**
-    -   Is it beneficial to explore more flexible models?
-3.  **Prediction Interval Flexibility:**
-    -   Currently, our prediction sets have a fixed length, which might not always be optimal. We could investigate alternative approaches like Conformalized Quantile Regression ([CQR](https://proceedings.neurips.cc/paper_files/paper/2019/hash/5103c3584b063c431bd1268e9b5e76fb-Abstract.html)), which allows for more adaptable prediction intervals.
-    
 ### Example of Result
 
 The red curve is the predicted region. The model is trained using all data until five weeks before the last date. Green curve shows the reported number of cases, subject to delays. Blue curve is the fitted model.
