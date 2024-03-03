@@ -113,7 +113,9 @@ download_infodengue_data <- function(brazil_ufs) {
 }
 
 process_data <- function(uf, last_ew_start) {
+  ## delete in future
   last_ew_start <- '2024-02-25'
+  ##
   gt_filename <- sprintf("data/weekly_data/gtrends/%s_trends.csv", uf)
   cases_filename <- sprintf("data/weekly_data/infodengue/%s_%s_infodengue.csv", uf, last_ew_start)
 
@@ -132,9 +134,13 @@ process_data <- function(uf, last_ew_start) {
   trends$Week <- as.Date(trends$Week)
 
   topics <- colnames(trends)[-1]
+  ## to delete:
+  trends <- trends[, -ncol(trends)]
+  topics <- topics[1:length(topics)-1]
+  ##
 
   merged_data <- merge(cases, trends, by.x = "ew_start", by.y = "Week")
-
+  
   # Convert all "<1" values to 0 in all columns
   for (col in names(merged_data)) {
     # Skip the ew_start column

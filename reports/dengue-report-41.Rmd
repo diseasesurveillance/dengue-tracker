@@ -9,9 +9,9 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 
 ```{r, echo = FALSE, warning=FALSE, message = FALSE}
 application <- "brazil"
-source("app-readdata-auxfunctions.R")
-source(paste0("app-readdata-", application, ".R"))
-source("tracker-createdatamaptimeplot.R")
+source("data_functions.R")
+source(paste0(application, "_data.R"))
+source("plotting_functions.R")
 
 ```
 
@@ -44,7 +44,7 @@ dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in
 
 ### Corrected number of dengue cases via Google trends
 
-```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'center', echo = FALSE}
+```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
 state <- state_code |>
   filter(state_n == inputSelectLoc2) |>
   select(short) |>
