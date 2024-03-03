@@ -17,5 +17,5 @@ We compute prediction sets via conformal inference.
 
 ### Example of Result
 
-The red curve is the predicted region. The model is trained using all data until five weeks before the last date. Green curve shows the reported number of cases, subject to delays. Blue curve is the fitted model.
+The red curve is the predicted region. The model is trained using all data until five weeks before the last date. Green curve shows the reported number of cases, subject to delays, and blue curve is the fitted model.
 ![São Paulo](figures/sp_qr.png)
