@@ -1,0 +1,110 @@
+---
+title: "People"
+---
+
+This disease surveillance project is led by Paula Moraga, Assistant Professor of Statistics and PI of the GeoHealth research group at King Abdullah University of Science and Technology (KAUST).
+Funding for this work is provided by the [Letten Foundation](https://letten.foundation/){target="_blank"}.
+
+
+The project's success is reliant on the cooperation of a number of collaborators and organizations worldwide.
+The team members listed below work on the development of statistical and machine learning methods for disease surveillance, and the translation of findings into actionable initiatives that improve health and wellbeing for all.
+
+<center>
+<style>
+#people td{
+border-top:0;
+border-bottom:0;
+}
+img{
+border-radius: 50%;
+width: 180px;
+}
+</style>
+
+<table id="people">
+<tr>
+<td align="center">
+<a href="https://github.com/paula-moraga">
+<img src="https://avatars.githubusercontent.com/u/25888724?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/paula-moraga">Paula Moraga <br> KAUST</a>
+</td>
+<td align="center">
+<a href="https://github.com/ChenXiang1998">
+<img src="https://avatars.githubusercontent.com/u/30073728?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/ChenXiang1998">Xiang Chen <br> KAUST</a>
+</td>
+<td align="center">
+<a href="https://github.com/YangX-Bit">
+<img src="https://avatars.githubusercontent.com/u/147154922?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/YangX-Bit">Yang Xiao <br> KAUST</a>
+</td>
+</tr>
+<tr>
+<td align="center">
+<a href="https://github.com/guipsoares">
+<img src="https://avatars.githubusercontent.com/u/23426955?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/guipsoares">Guilherme Soares <br> University of São Paulo</a>
+</td>
+<td align="center">
+<a href="http://www.rizbicki.ufscar.br/">
+<img src="https://avatars.githubusercontent.com/u/10176589?v=4" alt=""/>
+</a><br>
+<a href="http://www.rizbicki.ufscar.br/">Rafael Izbicki <br> Federal University of São Carlos</a>
+</td>
+<td align="center">
+<a href="https://github.com/lsbastos">
+<img src="https://avatars.githubusercontent.com/u/7204818?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/lsbastos">Leo Bastos <br> Fiocruz</a>
+</td>
+</tr>
+<tr>
+<td align="center">
+<a href="https://github.com/manjago85">
+<img src="https://avatars.githubusercontent.com/u/17789753?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/manjago85">Mario Gómez <br> University of Costa Rica</a>
+</td>
+<td align="center">
+<a href="https://github.com/luisbarboza27">
+<img src="https://avatars.githubusercontent.com/u/41637973?v=4" alt=""/>
+</a><br>
+<a href="https://github.com/luisbarboza27">Luis Barboza <br> University of Costa Rica</a>
+</td>
+</tr>
+
+</table>
+
+
+
+
+
+
+```{r, warning = FALSE, echo = FALSE, eval = TRUE}
+library(leaflet)
+
+infomap <- rbind(
+c("KAUST", "https://www.kaust.edu.sa/en/", 22.309762465865283, 39.104654804328575),
+c("Fiocruz", "https://www.fiocruz.br/", -22.876183395998915, -43.24384757672307),
+c("University of São Paulo", "https://www5.usp.br/", -23.55168476190895, -46.730838093337766),
+c("University of Costa Rica", "https://www.ucr.ac.cr/", 9.991181693645125, -84.10140008882803),
+c("Federal University of São Carlos", "https://www.ufscar.br/", -21.984790095827584, -47.881408353973406)
+)
+
+d <- as.data.frame(infomap)
+names(d) <- c("name", "link", "lat", "long")
+d$lat <- as.numeric(d$lat)
+d$long <- as.numeric(d$long)
+
+labels <- sprintf("<a href= \"%s\" style=\"color:#000000;\"> <strong> %s </strong></a>  ", d$link, d$name) %>% lapply(htmltools::HTML)
+
+leaflet(data = d) %>% addProviderTiles(providers$CartoDB.Positron) %>%
+  addMarkers(~long, ~lat, popup = ~labels)
+
+
+```
+</center>
