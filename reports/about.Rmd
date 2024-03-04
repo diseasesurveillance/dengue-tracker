@@ -7,12 +7,12 @@ author: Rafael Izbicki
 
 ### Current Model
 
-Let $Y_{l,t}$ represent the count of new dengue cases in location $l$ during the $t$-th week. Assume we are currently at week $t=t_0$. One issue with the reporting system is that $Y_{l,t}$ cannot be trusted for $t$ close to $t_0$ due to delays in the reporting system. Our goal is therefore to correct such estimates. In order to do that, we assume that $Y_{l,t}$ can be trusted for $t\leq t_0-K$ (here, we take $K=5$).
+Let $Y_{l,t}$ represent the count of new dengue cases in location $l$ during the $t$-th week. Assume we are currently at week $t=t_0$. One issue with the reporting system is that $Y_{l,t}$ cannot be trusted for $t$ close to $t_0$ due to delays in the reporting system. Our goal is therefore to correct such estimates. To do that, we assume that $Y_{l,t}$ can be trusted for $t\leq t_0-K$ (here, we take $K=5$).
 
-In order to predict $Y_{l,t}$ for recent weeks, we use searches in [Google Trends](https://trends.google.com.br/trends/). Specifically, let $X_{k,l,t}$ denote the volume of searches on Google Trends for term $k$ in the same location $l$ and week $t$. Here, the terms utilized for Google Trends searches include "Dengue," "Sintomas Dengue" (Dengue Symptoms), and "Tratamento Dengue" (Dengue Treatment). Our model is formulated as follows: $$Y_{l,t} = \beta_{0,l} + \sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t}.$$ This model essentially says that the number of cases is proportional to the Google Trends search activity.
+To predict $Y_{l,t}$ for recent weeks, we use searches in [Google Trends](https://trends.google.com.br/trends/). Specifically, let $X_{k,l,t}$ denote the volume of searches on Google Trends for term $k$ in the same location $l$ and week $t$. Here, the terms utilized for Google Trends searches include "Dengue," "Sintomas Dengue" (Dengue Symptoms), and "Tratamento Dengue" (Dengue Treatment). Our model is formulated as follows: $$Y_{l,t} = \beta_{0,l} + \sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t}.$$ This model essentially says that the number of cases is proportional to the Google Trends search activity.
 
 We fit the model independently for each location $l$ using all data points with $t \leq t_0-K$. We do this via standard least squares. Then, we estimate $Y_{l,t}$ for recent weeks via $$Y_{l,t} = \widehat \beta_{0,l} + \sum_{k=1}^{K} \widehat \beta_{k,l} \cdot X_{k,l,t},$$ where $\widehat \beta$'s represent the least squares estimates.
 
-We compute prediction sets via conformal inference.
+We compute prediction sets via [conformalized quantile regression](https://proceedings.neurips.cc/paper_files/paper/2019/file/5103c3584b063c431bd1268e9b5e76fb-Paper.pdf), where the base models are obtained via linear quantile regression of $Y$ on $x$.
 
 We download the number of reported cases from [Info Dengue API](https://info.dengue.mat.br/services/) on a weekly basis.
