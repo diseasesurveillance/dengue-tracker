@@ -1,5 +1,0 @@
----
-title: "Dengue tracker"
----
-  
-Dengue tracker

@@ -70,7 +70,10 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
       data = merged_data %>% filter(ew_start >= date_no_delay), aes(x = ew_start, ymin = lwr, ymax = upr),
       fill = "#D81B60", linetype = 2, alpha = 0.3
     ) +
-    labs(x = "", y = "Total Number of Weekly Cases") +
+    labs(x = "", y = "Total Number of Weekly Cases",
+         caption = paste0("Last updated using reported cases until ",
+         max(merged_data$ew_start))
+    ) +
     theme(
       axis.text.x = element_text(size = 18), legend.text = element_text(size = 14),
       legend.title = element_text(size = 16, face = "bold"),
@@ -111,10 +114,7 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
     ) +
     coord_cartesian(expand = FALSE) +
     scale_y_continuous(labels = scales::comma) +
-    ggtitle(paste0(
-      "Dengue in ", uf, " (Brazil)\nLast updated using reported cases until ",
-      max(merged_data$ew_start)
-    ))
+    ggtitle(paste0("Dengue in ", uf, " (Brazil)"))
   ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
   return(fig)
 }

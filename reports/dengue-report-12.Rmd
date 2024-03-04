@@ -50,7 +50,7 @@ state <- state_code |>
   select(short) |>
   as.character()
 
-data <- generate_data(brazil_ufs, log=F) |>
+data <- generate_data(brazil_ufs, log=F, gamma = 0.90) |>
   filter(uf==state)
 
 plot_trends_data(data, state)

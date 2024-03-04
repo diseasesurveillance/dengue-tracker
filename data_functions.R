@@ -1,48 +1,9 @@
-############################################################################################
-# Input Files
-############################################################################################
-# Need to specify d$idtime, d$nametime, d$idloc, map$idloc, map$nameloc, map$idloc2, map$nameloc2
-
-#-------------------------------------------------------
-# Data. csv files with the following columns
-#-------------------------------------------------------
-
-#<idtime> written in year (yyyy), month (yyyy-mm) or day (yyyy-mm-dd) format
-#<nametime> it can be the same as idtime
-#<idloc> id of location (unique identifier)
-#<nameloc> it can be the same as idloc
-#<cases> cases for each time and location
-#<population> population for each time and location
-
-#-------------------------------------------------------
-# Map. Shapefile (shp, dbf, shx and prj) with the following columns
-#-------------------------------------------------------
-
-#<idloc> id of location (unique identifier)
-#<nameloc> name of location
-#<idloc2> id of superarea encompassing a set of <idloc>
-#<nameloc2> it can be the same as idloc2
-
-#-------------------------------------------------------
-# Notes. <idloc> in the map and the data needs to be the same
-#-------------------------------------------------------
-
-
-
-
-
-
-############################################################################################
-# libraries
-############################################################################################
-
-
 library(leaflet)
 library(sf)
 library(geobr)
 library(ggplot2)
 library(plotly)
-library(tidyverse) # "%>%"
+library(tidyverse)
 library(leaflet)
 library(apexcharter)
 library(highcharter)
@@ -52,16 +13,10 @@ library(shinydashboard)
 library(vroom)
 library(plotly)
 library(viridis)
-library(shinyWidgets) # library("shinyWidgets")
+library(shinyWidgets)
 library(quantreg)
 library(lubridate)
-# library(INLA)
-# library(spdep)
 
-
-############################################################################################
-# Specify d$idtime, d$nametime, d$idloc, map$idloc, map$nameloc, map$idloc2, map$nameloc2
-############################################################################################
 
 brazil_ufs <- c(
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
@@ -97,7 +52,7 @@ fnSetTimeLocVariablesDataMap <- function(d, map, dmapvbles) {
 }
 
 
-download_infodengue_data <- function(brazil_ufs) {
+download_infodengue_data_by_state <- function(brazil_ufs) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
 
   for (uf in brazil_ufs) {
@@ -111,6 +66,24 @@ download_infodengue_data <- function(brazil_ufs) {
     cat("\nSuccessfully saved ", filename, "\n")
   }
 }
+
+
+download_infodengue_data_by_city <- function(brazil_ufs) {
+  last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
+  
+  for (uf in brazil_ufs) {
+    infodengue_data <- denguetracker::fetch_data_from_cities(uf,
+                                                            ey_start = 2018,
+                                                            ey_end = 2024
+    )
+    filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
+    file_path <- paste0("data/weekly_data/infodengue/city/", filename)
+    write.csv(infodengue_data, file_path, row.names = F)
+    cat("\nSuccessfully saved ", filename, "\n")
+  }
+  
+}
+
 
 process_data <- function(uf, last_ew_start) {
   ## delete in future
@@ -155,7 +128,7 @@ process_data <- function(uf, last_ew_start) {
 }
 
 
-run_model <- function(merged_data, topics, log, K = 5, gamma = 0.95) {
+run_model <- function(merged_data, topics, log, gamma, K = 5) {
   if (log) {
     merged_data_log <- merged_data
     merged_data_log$sum_of_cases <- log(merged_data$sum_of_cases + 1)
@@ -168,7 +141,7 @@ run_model <- function(merged_data, topics, log, K = 5, gamma = 0.95) {
     )
     prediction <- predict(best_linear_transform, merged_data_log)
     error <- abs(prediction[1:(nrow(merged_data) - 5)] - merged_data_log$sum_of_cases[1:(nrow(merged_data) - 5)])
-    quantile_error <- quantile(error, probs = 0.95)
+    quantile_error <- quantile(error, probs = gamma)
     merged_data_log$lwr <- prediction - quantile_error
     merged_data_log$upr <- prediction + quantile_error
     merged_data_log$lwr <- exp(merged_data_log$lwr) - 1
@@ -204,7 +177,7 @@ run_model <- function(merged_data, topics, log, K = 5, gamma = 0.95) {
       merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
     ), 1, max)
 
-  quantile_error <- quantile(error, probs = 0.95, na.rm = T)
+  quantile_error <- quantile(error, probs = gamma, na.rm = T)
   merged_data$lwr <- prediction_lower - quantile_error
   merged_data$upr <- prediction_upper + quantile_error
   merged_data$prediction <- prediction
@@ -213,7 +186,7 @@ run_model <- function(merged_data, topics, log, K = 5, gamma = 0.95) {
 }
 
 
-generate_data <- function(brazil_ufs, log = F) {
+generate_data <- function(brazil_ufs, log = F, gamma = 0.95) {
   final_df <- data.frame()
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
 
@@ -223,7 +196,7 @@ generate_data <- function(brazil_ufs, log = F) {
     data <- out[[1]]
     topics <- out[[2]]
 
-    merged_data <- run_model(data, topics, log)
+    merged_data <- run_model(data, topics, log, gamma)
 
     final_df <- rbind(final_df, merged_data)
     ##### Plots - Linear scale
