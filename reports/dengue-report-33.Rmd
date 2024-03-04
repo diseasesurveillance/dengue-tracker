@@ -60,17 +60,3 @@ plot_trends_data(data, state)
 ---
 title: "Dengue Report - `r state`"
 ---
-
-<style>
-.html-widget {
-    margin: auto;
-}
-</style>
-
-### Estimated number of cases in each state using Google Trends (using data until `r format(as.Date(max(data$ew_start)), "%d-%m-%y")`)
-
-
-```{r map-plot, fig.align = 'center', echo = FALSE}
-#fnLeafletMap(mapF)
-state_level_cloropleth(model_preds, states_map)
-```

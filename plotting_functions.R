@@ -56,7 +56,7 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
       label = labels, labelOptions = labelOptionss,
       highlightOptions = highlightOptions(weight = 3, color = "gray", dashArray = "", fillOpacity = 0.7, bringToFront = FALSE)
     ) |>
-    addLegend(pal = pal, values = ~prevalence, opacity = 0.7, title = NULL, position = "bottomright") |>
+    addLegend(pal = pal, values = ~prevalence, opacity = 0.7, position = "bottomright", title = "Estimated cases<br/>per 100k hab.") |>
     addSearchFeatures(targetGroups = "poly", options = searchFeaturesOptions(zoom = 7, autoCollapse = TRUE, openPopup = TRUE))
 }
 
