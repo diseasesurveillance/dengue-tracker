@@ -546,6 +546,9 @@ display: none;
 <li>
   <a href="about.html">About</a>
 </li>
+<li>
+  <a href="people.html">People</a>
+</li>
       </ul>
     </div><!--/.nav-collapse -->
   </div><!--/.container -->
@@ -587,13 +590,8 @@ least squares. Then, we estimate <span class="math inline">\(Y_{l,t}\)</span> fo
 \widehat \beta_{k,l} \cdot X_{k,l,t},\]</span> where <span class="math inline">\(\widehat \beta\)</span>’s represent the least
 squares estimates.</p>
 <p>We compute prediction sets via conformal inference.</p>
-</div>
-<div id="example-of-result" class="section level3">
-<h3>Example of Result</h3>
-<p>The red curve is the predicted region. The model is trained using all
-data until five weeks before the last date. Green curve shows the
-reported number of cases, subject to delays, and blue curve is the
-fitted model. <img src="figures/sp_qr.png" alt="São Paulo" /></p>
+<p>We download the number of reported cases from <a href="https://info.dengue.mat.br/services/">Info Dengue API</a> on a
+weekly basis.</p>
 </div>
 
 

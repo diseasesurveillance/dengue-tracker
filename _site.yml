@@ -63,7 +63,9 @@ navbar:
       - text: "Tocantins"
         href: dengue-report-17.html
     - text: "About"
-      href: about.html      
+      href: about.html
+    - text: "People"
+      href: people.html
 output:
   html_document:
     theme: cosmo
