@@ -16,6 +16,7 @@ library(viridis)
 library(shinyWidgets)
 library(quantreg)
 library(lubridate)
+library(rvest)
 
 
 states_map <- geobr::read_state(showProgress = F)
@@ -25,6 +26,9 @@ brazil_ufs <- c(
   "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 )
+
+population_state <- read_csv2("data/population_state.csv") |>
+  mutate(Uf = str_to_title(Uf))
 
 
 fnSetTimeLocVariablesDataMap <- function(d, map, dmapvbles) {

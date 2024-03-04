@@ -51,11 +51,15 @@ state <- state_code |>
   as.character()
 
 model_preds <- generate_data(brazil_ufs, gamma = 0.90)
-state <- "SP"
+
 data <- model_preds |> filter(uf==state)
 
 plot_trends_data(data, state)
 ```
+
+---
+title: "Dengue Report - `r state`"
+---
 
 <style>
 .html-widget {

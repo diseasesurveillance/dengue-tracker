@@ -571,25 +571,29 @@ of new dengue cases in location <span class="math inline">\(l\)</span>
 during the <span class="math inline">\(t\)</span>-th week. Assume we are
 currently at week <span class="math inline">\(t=t_0\)</span>. One issue
 with the reporting system is that <span class="math inline">\(Y_{l,t}\)</span> cannot be trusted for <span class="math inline">\(t\)</span> close to <span class="math inline">\(t_0\)</span> due to delays in the reporting
-system. Our goal is therefore to correct such estimates. In order to do
-that, we assume that <span class="math inline">\(Y_{l,t}\)</span> can be
-trusted for <span class="math inline">\(t\leq t_0-K\)</span> (here, we
-take <span class="math inline">\(K=5\)</span>).</p>
-<p>In order to predict <span class="math inline">\(Y_{l,t}\)</span> for
-recent weeks, we use searches in <a href="https://trends.google.com.br/trends/">Google Trends</a>.
+system. Our goal is therefore to correct such estimates. To do that, we
+assume that <span class="math inline">\(Y_{l,t}\)</span> can be trusted
+for <span class="math inline">\(t\leq t_0-K\)</span> (here, we take
+<span class="math inline">\(K=5\)</span>).</p>
+<p>To predict <span class="math inline">\(Y_{l,t}\)</span> for recent
+weeks, we use searches in <a href="https://trends.google.com.br/trends/">Google Trends</a>.
 Specifically, let <span class="math inline">\(X_{k,l,t}\)</span> denote
 the volume of searches on Google Trends for term <span class="math inline">\(k\)</span> in the same location <span class="math inline">\(l\)</span> and week <span class="math inline">\(t\)</span>. Here, the terms utilized for Google
 Trends searches include “Dengue,” “Sintomas Dengue” (Dengue Symptoms),
 and “Tratamento Dengue” (Dengue Treatment). Our model is formulated as
 follows: <span class="math display">\[Y_{l,t} = \beta_{0,l} +
-\sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t}.\]</span>
-This model essentially says that the number of cases is proportional to
-the Google Trends search activity.</p>
+\sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t},\]</span>
+where <span class="math inline">\(\epsilon_{l,t}\)</span> has zero mean,
+but its variance can depend on the <span class="math inline">\(x_{\cdot,l,t}\)</span>’s. This model essentially
+says that the number of cases is proportional to the Google Trends
+search activity.</p>
 <p>We fit the model independently for each location <span class="math inline">\(l\)</span> using all data points with <span class="math inline">\(t \leq t_0-K\)</span>. We do this via standard
 least squares. Then, we estimate <span class="math inline">\(Y_{l,t}\)</span> for recent weeks via <span class="math display">\[Y_{l,t} = \widehat \beta_{0,l} + \sum_{k=1}^{K}
 \widehat \beta_{k,l} \cdot X_{k,l,t},\]</span> where <span class="math inline">\(\widehat \beta\)</span>’s represent the least
 squares estimates.</p>
-<p>We compute prediction sets via conformal inference.</p>
+<p>We compute prediction sets via <a href="https://proceedings.neurips.cc/paper_files/paper/2019/file/5103c3584b063c431bd1268e9b5e76fb-Paper.pdf">conformalized
+quantile regression</a>, where the base models are obtained via linear
+quantile regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(x\)</span>.</p>
 <p>We download the number of reported cases from <a href="https://info.dengue.mat.br/services/">Info Dengue API</a> on a
 weekly basis.</p>
 </div>

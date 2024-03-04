@@ -34,24 +34,29 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
     filter(ew_start == max(ew_start)) |>
     select(uf, sum_of_cases, prediction)
 
-  mapF <- merge(cases, states_map, by.x = "uf", by.y = "abbrev_state")
-
+  mapF <- merge(
+    merge(cases, states_map, by.x = "uf", by.y = "abbrev_state"),
+    population_state,
+    by.x = "name_state",
+    by.y = "Uf"
+  ) |> mutate(prevalence = (prediction/Pop)*10^5)
+  
   labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
 
-  pal <- colorNumeric("YlOrRd", domain = mapF$prediction)
-  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g cases", mapF$name_state, round(mapF$prediction)) |>
+  pal <- colorNumeric("YlOrRd", domain = mapF$prevalence)
+  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g cases <br/> Prevalence per 100k hab: %g", mapF$name_state, round(mapF$prediction), mapF$prevalence) |>
     lapply(htmltools::HTML)
 
   mapF <- st_as_sf(mapF)
   leaflet(mapF) |>
     addTiles() |>
     addPolygons(
-      fillColor = ~ pal(prediction), layerId = ~uf, group = "poly",
+      fillColor = ~ pal(prevalence), layerId = ~uf, group = "poly",
       weight = 1, opacity = 1, color = "white", dashArray = "1", fillOpacity = 0.7,
       label = labels, labelOptions = labelOptionss,
       highlightOptions = highlightOptions(weight = 3, color = "gray", dashArray = "", fillOpacity = 0.7, bringToFront = FALSE)
     ) |>
-    addLegend(pal = pal, values = ~prediction, opacity = 0.7, title = NULL, position = "bottomright") |>
+    addLegend(pal = pal, values = ~prevalence, opacity = 0.7, title = NULL, position = "bottomright") |>
     addSearchFeatures(targetGroups = "poly", options = searchFeaturesOptions(zoom = 7, autoCollapse = TRUE, openPopup = TRUE))
 }
 

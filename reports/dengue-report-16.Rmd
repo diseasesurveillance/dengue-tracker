@@ -57,6 +57,10 @@ data <- model_preds |> filter(uf==state)
 plot_trends_data(data, state)
 ```
 
+---
+title: "Dengue Report - `r state`"
+---
+
 <style>
 .html-widget {
     margin: auto;
