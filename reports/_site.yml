@@ -6,7 +6,7 @@ navbar:
   right:
     - text: "Home"
       href: index.html
-    - text: "More"
+    - text: "Reports"
       menu:
       - text: "Acre"
         href: dengue-report-12.html

@@ -18,6 +18,8 @@ library(quantreg)
 library(lubridate)
 
 
+states_map <- geobr::read_state(showProgress = F)
+
 brazil_ufs <- c(
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
   "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
@@ -157,9 +159,9 @@ run_model <- function(merged_data, topics, gamma, K = 5) {
     ), 1, max)
 
   quantile_error <- quantile(error, probs = gamma, na.rm = T)
-  merged_data$lwr <- prediction_lower - quantile_error
-  merged_data$upr <- prediction_upper + quantile_error
-  merged_data$prediction <- prediction
+  merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
+  merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
+  merged_data$prediction <- pmax(prediction, 0)
 
   return(merged_data)
 }
@@ -178,7 +180,6 @@ generate_data <- function(ufs, gamma = 0.95) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
 
   for (uf in ufs) {
-    #### Data process
     out <- process_data(uf, last_ew_start)
     data <- out[[1]]
     topics <- out[[2]]

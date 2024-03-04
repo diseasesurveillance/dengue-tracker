@@ -29,6 +29,33 @@ fnLeafletMap <- function(mapF) {
 }
 
 
+state_level_cloropleth <- function(predicted_cases, states_map) {
+  cases <- predicted_cases |>
+    filter(ew_start == max(ew_start)) |>
+    select(uf, sum_of_cases, prediction)
+
+  mapF <- merge(cases, states_map, by.x = "uf", by.y = "abbrev_state")
+
+  labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
+
+  pal <- colorNumeric("YlOrRd", domain = mapF$prediction)
+  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g cases", mapF$name_state, round(mapF$prediction)) |>
+    lapply(htmltools::HTML)
+
+  mapF <- st_as_sf(mapF)
+  leaflet(mapF) |>
+    addTiles() |>
+    addPolygons(
+      fillColor = ~ pal(prediction), layerId = ~uf, group = "poly",
+      weight = 1, opacity = 1, color = "white", dashArray = "1", fillOpacity = 0.7,
+      label = labels, labelOptions = labelOptionss,
+      highlightOptions = highlightOptions(weight = 3, color = "gray", dashArray = "", fillOpacity = 0.7, bringToFront = FALSE)
+    ) |>
+    addLegend(pal = pal, values = ~prediction, opacity = 0.7, title = NULL, position = "bottomright") |>
+    addSearchFeatures(targetGroups = "poly", options = searchFeaturesOptions(zoom = 7, autoCollapse = TRUE, openPopup = TRUE))
+}
+
+
 fnDFiltered <- function(inputSelectVble, mapF) {
   dFiltered <- as.data.frame(d)
   dFiltered <- dFiltered[which(dFiltered$idloc %in% mapF$idloc), ] # select idloc in mapF (in state)
@@ -45,7 +72,7 @@ fnTimeplot <- function(dF) {
 
 plot_trends_data <- function(merged_data, uf, K = 5) {
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
-  merged_data <- merged_data %>% filter(ew_start >= '2021-01-01')
+  merged_data <- merged_data %>% filter(ew_start >= "2021-01-01")
   fig <- ggplot(merged_data) +
     geom_line(
       aes(
@@ -70,9 +97,12 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
       data = merged_data %>% filter(ew_start >= date_no_delay), aes(x = ew_start, ymin = lwr, ymax = upr),
       fill = "#D81B60", linetype = 2, alpha = 0.3
     ) +
-    labs(x = "", y = "Total Number of Weekly Cases",
-         caption = paste0("Last updated using reported cases until ",
-         max(merged_data$ew_start))
+    labs(
+      x = "", y = "Total Number of Weekly Cases",
+      caption = paste0(
+        "Last updated using reported cases until ",
+        max(merged_data$ew_start)
+      )
     ) +
     theme(
       axis.text.x = element_text(size = 18), legend.text = element_text(size = 14),
@@ -115,7 +145,7 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
     coord_cartesian(expand = FALSE) +
     scale_y_continuous(labels = scales::comma) +
     ggtitle(paste0("Dengue in ", uf, " (Brazil)"))
-  ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
+  # ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
   return(fig)
 }
 
