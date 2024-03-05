@@ -57,7 +57,13 @@ data <- model_preds |> filter(uf==state)
 plot_trends_data(data, state)
 ```
 
-```{r, fig.width=9, fig.height=9}
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+```{r, fig.width=7, fig.height=9, fig.align='center'}
 panel_plot_states(data, state)
 ```
 
