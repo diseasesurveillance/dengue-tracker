@@ -109,8 +109,10 @@ panel_plot_states <- function(merged_data, uf, K = 5) {
           panel.spacing = unit(2, "lines"))+
     coord_cartesian(expand = FALSE) +  
     scale_y_continuous(labels = scales::comma)+
-    ggtitle(paste0("Panel plot - Dengue in ", uf, " (BR)"))+
+    ggtitle(ifelse(uf == "Brazil", "Panel plot - Dengue in Brazil", 
+                   paste("Panel plot - Dengue in", uf, "(BR)")))+
     facet_wrap(facets = year ~ .)
+  
 }
 
 
@@ -202,7 +204,7 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
     ) +
     coord_cartesian(expand = FALSE) +
     scale_y_continuous(labels = scales::comma) +
-    ggtitle(paste0("Dengue in ", uf, " (Brazil)"))
+    ggtitle(ifelse(uf == "Brazil", "Dengue in Brazil", paste("Dengue in", uf, "(BR)")))
   return(fig)
 }
 

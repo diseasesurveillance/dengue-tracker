@@ -60,7 +60,7 @@ fnSetTimeLocVariablesDataMap <- function(d, map, dmapvbles) {
 
 download_infodengue_data_by_state <- function(brazil_ufs) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
-
+  data_ <- data.frame()
   for (uf in brazil_ufs) {
     infodengue_data <- denguetracker::fetch_data_from_state(uf,
       ey_start = 2018,
@@ -68,9 +68,15 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
     )
     filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
     file_path <- paste0("data/weekly_data/infodengue/", filename)
+    data_ <- rbind(data_, infodengue_data)
     write.csv(infodengue_data, file_path, row.names = F)
     cat("\nSuccessfully saved ", filename, "\n")
   }
+  filename <- sprintf("BR_%s_infodengue.csv", last_ew_start)
+  file_path <- paste0("data/weekly_data/infodengue/", filename)
+  result <- aggregate(sum_of_cases ~ ew_start, data = data_, FUN = sum)
+  write.csv(result, file_path, row.names = F)
+  cat("\nSuccessfully saved ", filename, "\n")
 }
 
 
