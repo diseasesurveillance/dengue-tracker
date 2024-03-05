@@ -82,6 +82,8 @@ width: 180px;
 
 <br>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
 
 ```{r, warning = FALSE, echo = FALSE, eval = TRUE}
 library(leaflet)

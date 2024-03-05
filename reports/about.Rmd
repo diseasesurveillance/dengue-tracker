@@ -2,6 +2,8 @@
 title: "About Dengue-tracker"
 ---
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
 ## Dengue
 
 Dengue is a viral infection that spreads to people through the bite of an infected Aedes species (Aedes aegypti or Aedes albopictus) mosquito.
