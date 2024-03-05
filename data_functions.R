@@ -124,7 +124,7 @@ process_data <- function(uf, last_ew_start) {
   
   topics <- colnames(trends)[-1]
 
-  merged_data <- merge(cases, trends, by.x = "ew_start", by.y = "Week")
+  merged_data <- merge(cases, trends, by.x = "ew_start", by.y = "Week", all = TRUE)
   
   # Convert all "<1" values to 0 in all columns
   for (col in names(merged_data)) {

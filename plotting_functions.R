@@ -68,7 +68,7 @@ panel_plot_states <- function(merged_data, uf, K = 5) {
 
   ggplot(merged_data) +
     geom_line(aes(x=day,y = sum_of_cases, group = 1, 
-                  colour = "Reported Cases \n (subject to delays)"),
+                  colour = "Suspected Cases \n (subject to delays)"),
               size=1) +
     geom_line(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = day,y = prediction, 
                                                                        group = 1, color = "Fitted Model"),linetype=1, size = .5) +
@@ -78,16 +78,23 @@ panel_plot_states <- function(merged_data, uf, K = 5) {
                                                                        group = 1, color = "Corrected Estimate"),size=1) +
     geom_ribbon(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
-    labs(x = "", y = "Weekly Number of Cases",caption = paste0("Last updated using reported cases until ",
-                                                               max(merged_data$ew_start))) +
+    labs(x = "",
+         y = "Number of weekly suspected cases",
+         caption = paste0(
+           "Last updated using reported suspected cases until ",
+           max(merged_data$ew_start[!is.na(merged_data$sum_of_cases)]),
+           "\n and Google Trends data until ", max(merged_data$ew_start),
+           "\n More information: https://diseasesurveillance.github.io/dengue-tracker"
+         )
+    ) +
     theme(axis.text.x = element_text(size=18), legend.text = element_text(size = 14),
           legend.title = element_text( size = 16,face="bold"),
           axis.title=element_text(size=18),plot.title = element_text(size=12))+
     theme_bw()+
     scale_x_date(date_labels = "%B",date_breaks = "3 month")+
     scale_colour_manual("", 
-                        breaks = c("Reported Cases \n (subject to delays)", "Corrected Estimate","Fitted Model"),
-                        values = c("Reported Cases \n (subject to delays)" = "#004D40", 
+                        breaks = c("Suspected Cases \n (subject to delays)", "Corrected Estimate","Fitted Model"),
+                        values = c("Suspected Cases \n (subject to delays)" = "#004D40", 
                                    "Corrected Estimate" = "#D81B60",
                                    "Fitted Model"="#1E88E5")) +
     theme(legend.position = "top",
@@ -137,7 +144,7 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
     geom_line(
       aes(
         x = ew_start, y = sum_of_cases, group = 1,
-        colour = "Reported Cases \n (subject to delays)"
+        colour = "Suspected Cases \n (subject to delays)"
       ),
       size = 1
     ) +
@@ -158,12 +165,14 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
       fill = "#D81B60", linetype = 2, alpha = 0.3
     ) +
     labs(
-      x = "", y = "Total Number of Weekly Cases",
+      x = "", y = "Number of weekly suspected cases",
       caption = paste0(
-        "Last updated using reported cases until ",
-        max(merged_data$ew_start)
-      )
-    ) +
+        "Last updated using reported suspected cases until ",
+        max(merged_data$ew_start[!is.na(merged_data$sum_of_cases)]),
+        "\n and Google Trends data until ", max(merged_data$ew_start),
+        "\n More information: https://diseasesurveillance.github.io/dengue-tracker"
+        )
+      )   +
     theme(
       axis.text.x = element_text(size = 18), legend.text = element_text(size = 14),
       legend.title = element_text(size = 16, face = "bold"),
@@ -175,9 +184,9 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
       date_labels = "%b/%y"
     ) +
     scale_colour_manual("",
-      breaks = c("Reported Cases \n (subject to delays)", "Corrected Estimate", "Fitted Model"),
+      breaks = c("Suspected Cases \n (subject to delays)", "Corrected Estimate", "Fitted Model"),
       values = c(
-        "Reported Cases \n (subject to delays)" = "#004D40",
+        "Suspected Cases \n (subject to delays)" = "#004D40",
         "Corrected Estimate" = "#D81B60",
         "Fitted Model" = "#1E88E5"
       )
