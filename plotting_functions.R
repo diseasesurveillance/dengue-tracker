@@ -203,7 +203,6 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
     coord_cartesian(expand = FALSE) +
     scale_y_continuous(labels = scales::comma) +
     ggtitle(paste0("Dengue in ", uf, " (Brazil)"))
-  # ggsave(sprintf("figures/%s_plot.png", uf), plot = fig, width = 11, height = 7)
   return(fig)
 }
 

@@ -111,12 +111,12 @@ process_data <- function(uf, last_ew_start) {
 
   cases$ew_start <- as.Date(cases$ew_start)
   trends$Week <- as.Date(trends$Week)
-
-  topics <- colnames(trends)[-1]
+  
   ## to delete:
-  trends <- trends[, -ncol(trends)]
-  topics <- topics[1:length(topics)-1]
+  trends <- trends[, !colnames(trends) %in% c("tratamento.dengue")]
   ##
+  
+  topics <- colnames(trends)[-1]
 
   merged_data <- merge(cases, trends, by.x = "ew_start", by.y = "Week")
   
@@ -197,4 +197,21 @@ generate_data <- function(ufs, gamma = 0.95) {
             sprintf("data/model_results/model_%s.csv", last_ew_start),
             row.names = F)
   final_df
+}
+
+
+generate_data_all_country <- function(gamma = 0.95) {
+  last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
+  
+  out <- process_data("BR", last_ew_start)
+  final_data <- out[[1]]
+  topics <- out[[2]]
+  
+  merged_data <- run_model(final_data, topics, gamma)
+  
+  last_ew_start <- "2024-02-25"
+  write.csv(merged_data,
+            sprintf("data/model_results/model_%s_%s.csv", last_ew_start, "BR"),
+            row.names = F)
+  merged_data
 }

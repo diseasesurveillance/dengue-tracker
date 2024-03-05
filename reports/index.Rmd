@@ -36,3 +36,23 @@ model_preds <- generate_data(brazil_ufs, gamma = 0.90)
 
 state_level_cloropleth(model_preds, states_map)
 ```
+ 
+<br>
+
+### Corrected number of dengue cases via Google Trends
+
+```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
+model_preds <- generate_data_all_country(gamma = 0.90)
+
+plot_trends_data(model_preds, "Brazil")
+```
+
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+```{r, fig.width=7, fig.height=9, fig.align='center'}
+panel_plot_states(model_preds, "Brazil")
+```
