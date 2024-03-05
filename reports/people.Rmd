@@ -1,8 +1,7 @@
 ---
 title: "People"
 ---
-
-This disease surveillance project is led by Paula Moraga, Assistant Professor of Statistics and PI of the GeoHealth research group at King Abdullah University of Science and Technology (KAUST).
+Dengue-tracker is part of the [disease surveillance project](https://diseasesurveillance.github.io/){target="_blank"} led by Paula Moraga, Assistant Professor of Statistics and PI of the GeoHealth research group at King Abdullah University of Science and Technology (KAUST).
 Funding for this work is provided by the [Letten Foundation](https://letten.foundation/){target="_blank"}.
 
 
@@ -24,10 +23,10 @@ width: 180px;
 <table id="people">
 <tr>
 <td align="center">
-<a href="https://github.com/paula-moraga">
+<a href="https://www.paulamoraga.com/">
 <img src="https://avatars.githubusercontent.com/u/25888724?v=4" alt=""/>
 </a><br>
-<a href="https://github.com/paula-moraga">Paula Moraga <br> KAUST</a>
+<a href="https://www.paulamoraga.com/">Paula Moraga <br> KAUST</a>
 </td>
 <td align="center">
 <a href="https://github.com/ChenXiang1998">
@@ -81,7 +80,7 @@ width: 180px;
 
 
 
-
+<br>
 
 
 ```{r, warning = FALSE, echo = FALSE, eval = TRUE}

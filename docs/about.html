@@ -9,10 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Rafael Izbicki" />
 
 
-<title>Model for Dengue Nowcasting</title>
+<title>About Dengue-tracker</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -558,19 +557,41 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Model for Dengue Nowcasting</h1>
-<h4 class="author">Rafael Izbicki</h4>
+<h1 class="title toc-ignore">About Dengue-tracker</h1>
 
 </div>
 
 
-<div id="current-model" class="section level3">
-<h3>Current Model</h3>
-<p>Let <span class="math inline">\(Y_{l,t}\)</span> represent the count
-of new dengue cases in location <span class="math inline">\(l\)</span>
-during the <span class="math inline">\(t\)</span>-th week. Assume we are
-currently at week <span class="math inline">\(t=t_0\)</span>. One issue
-with the reporting system is that <span class="math inline">\(Y_{l,t}\)</span> cannot be trusted for <span class="math inline">\(t\)</span> close to <span class="math inline">\(t_0\)</span> due to delays in the reporting
+<div id="dengue" class="section level2">
+<h2>Dengue</h2>
+<p>Dengue is a viral infection that spreads to people through the bite
+of an infected Aedes species (Aedes aegypti or Aedes albopictus)
+mosquito. <!--
+About half of the global population is currently at risk of contracting dengue fever, with an estimated 100 to 400 million infections occurring annually. Dengue is prevalent in tropical and subtropical regions worldwide, primarily in urban and semi-urban areas.
+--> Although many infections of the dengue virus (DENV) do not show
+symptoms or only result in mild flu-like illness, some cases can be
+severe and potentially fatal. Dengue fever does not have a specific
+treatment. Early detection and timely access to proper medical care
+significantly reduce the fatality rates associated with severe cases.
+Preventing and controlling dengue transmission relies on managing the
+the mosquitoes that act as vectors.</p>
+<div id="model-for-dengue-nowcasting" class="section level3">
+<h3>Model for Dengue Nowcasting</h3>
+<p>Dengue data from surveillance systems is crucial for prevention and
+control. Unfortunately, this data is often delayed, preventing timely
+decision-making and resource allocation. In Dengue-tracker, we provide
+weekly updates on the number of official dengue cases per municipality
+in Brazil. Additionally, we present corrected case counts incorporating
+information from Google trends. We believe these reports will assist
+policymakers in understanding dengue levels and guide their
+decisions.</p>
+<p>We are currently using the following nowcasting model. Let <span class="math inline">\(Y_{l,t}\)</span> represent the count of new dengue
+cases in location <span class="math inline">\(l\)</span> during the
+<span class="math inline">\(t\)</span>-th week. Assume we are currently
+at week <span class="math inline">\(t=t_0\)</span>. One issue with the
+reporting system is that <span class="math inline">\(Y_{l,t}\)</span>
+cannot be trusted for <span class="math inline">\(t\)</span> close to
+<span class="math inline">\(t_0\)</span> due to delays in the reporting
 system. Our goal is therefore to correct such estimates. To do that, we
 assume that <span class="math inline">\(Y_{l,t}\)</span> can be trusted
 for <span class="math inline">\(t\leq t_0-K\)</span> (here, we take
@@ -596,6 +617,7 @@ quantile regression</a>, where the base models are obtained via linear
 quantile regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(x\)</span>.</p>
 <p>We download the number of reported cases from <a href="https://info.dengue.mat.br/services/">Info Dengue API</a> on a
 weekly basis.</p>
+</div>
 </div>
 
 

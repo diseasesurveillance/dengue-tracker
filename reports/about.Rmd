@@ -1,12 +1,22 @@
 ---
-title: "Model for Dengue Nowcasting"
-format: html
-editor: source
-author: Rafael Izbicki
+title: "About Dengue-tracker"
 ---
 
-### Current Model
+## Dengue
 
+Dengue is a viral infection that spreads to people through the bite of an infected Aedes species (Aedes aegypti or Aedes albopictus) mosquito.
+<!--
+About half of the global population is currently at risk of contracting dengue fever, with an estimated 100 to 400 million infections occurring annually. Dengue is prevalent in tropical and subtropical regions worldwide, primarily in urban and semi-urban areas.
+-->
+Although many infections of the dengue virus (DENV) do not show symptoms or only result in mild flu-like illness, some cases can be severe and potentially fatal. Dengue fever does not have a specific treatment. Early detection and timely access to proper medical care significantly reduce the fatality rates associated with severe cases. Preventing and controlling dengue transmission relies on managing the the mosquitoes that act as vectors.
+
+
+### Model for Dengue Nowcasting
+
+Dengue data from surveillance systems is crucial for prevention and control. Unfortunately, this data is often delayed, preventing timely decision-making and resource allocation. In Dengue-tracker, we provide weekly updates on the number of official dengue cases per municipality in Brazil. Additionally, we present corrected case counts incorporating information from Google trends. We believe these reports will assist policymakers in understanding dengue levels and guide their decisions.
+
+
+We are currently using the following nowcasting model.
 Let $Y_{l,t}$ represent the count of new dengue cases in location $l$ during the $t$-th week. Assume we are currently at week $t=t_0$. One issue with the reporting system is that $Y_{l,t}$ cannot be trusted for $t$ close to $t_0$ due to delays in the reporting system. Our goal is therefore to correct such estimates. To do that, we assume that $Y_{l,t}$ can be trusted for $t\leq t_0-K$ (here, we take $K=5$).
 
 To predict $Y_{l,t}$ for recent weeks, we use searches in [Google Trends](https://trends.google.com.br/trends/). Specifically, let $X_{k,l,t}$ denote the volume of searches on Google Trends for term $k$ in the same location $l$ and week $t$. Here, the terms utilized for Google Trends searches include "Dengue," "Sintomas Dengue" (Dengue Symptoms), and "Tratamento Dengue" (Dengue Treatment). Our model is formulated as follows: $$Y_{l,t} = \beta_{0,l} + \sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t},$$
