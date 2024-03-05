@@ -31,7 +31,7 @@ model_preds <- generate_data(brazil_ufs, gamma = 0.90)
 </style>
 
 
-### Estimated number of cases in each state using Google Trends (using data until `r format(as.Date(max(model_preds$ew_start)), "%d-%m-%y")`)
+### Estimated number of suspected cases in each state using Google Trends (using data until `r format(as.Date(max(model_preds$ew_start)), "%d/%m/%Y")`)
 
 
 ```{r map-plot, fig.align = 'center', echo = FALSE}
@@ -41,7 +41,7 @@ state_level_cloropleth(model_preds, states_map)
  
 <br>
 
-### Corrected number of dengue cases via Google Trends
+### Corrected number of suspected dengue cases via Google Trends
 
 ```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
 model_preds <- generate_data_all_country(gamma = 0.90)

@@ -42,7 +42,7 @@ dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in
 # ```
 -->
 
-### Corrected number of dengue cases via Google Trends
+### Corrected number of suspected dengue cases via Google Trends
 
 ```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
 state <- state_code |>

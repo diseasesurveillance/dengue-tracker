@@ -44,7 +44,7 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
   labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
 
   pal <- colorNumeric("YlOrRd", domain = mapF$prevalence)
-  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g cases <br/> Prevalence per 100k hab: %g", mapF$name_state, round(mapF$prediction), round(mapF$prevalence)) |>
+  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g suspected cases <br/> Prevalence per 100k hab: %g", mapF$name_state, round(mapF$prediction), round(mapF$prevalence)) |>
     lapply(htmltools::HTML)
 
   mapF <- st_as_sf(mapF)
