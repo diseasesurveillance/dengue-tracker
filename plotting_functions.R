@@ -44,7 +44,7 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
   labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
 
   pal <- colorNumeric("YlOrRd", domain = mapF$prevalence)
-  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g cases <br/> Prevalence per 100k hab: %g", mapF$name_state, round(mapF$prediction), mapF$prevalence) |>
+  labels <- sprintf("<strong> %s </strong> <br/> Prediction: %g cases <br/> Prevalence per 100k hab: %g", mapF$name_state, round(mapF$prediction), round(mapF$prevalence)) |>
     lapply(htmltools::HTML)
 
   mapF <- st_as_sf(mapF)
@@ -58,6 +58,59 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
     ) |>
     addLegend(pal = pal, values = ~prevalence, opacity = 0.7, position = "bottomright", title = "Estimated cases<br/>per 100k hab.") |>
     addSearchFeatures(targetGroups = "poly", options = searchFeaturesOptions(zoom = 7, autoCollapse = TRUE, openPopup = TRUE))
+}
+
+
+panel_plot_states <- function(merged_data, uf, K = 5) {
+  date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
+  merged_data$year <- format(as.Date(merged_data$ew_start, format="%d/%m/%Y"),"%Y")
+  merged_data$day <- as.Date(format(merged_data$ew_start,"%d/%m"), "%d/%m")
+
+  ggplot(merged_data) +
+    geom_line(aes(x=day,y = sum_of_cases, group = 1, 
+                  colour = "Reported Cases \n (subject to delays)"),
+              size=1) +
+    geom_line(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = day,y = prediction, 
+                                                                       group = 1, color = "Fitted Model"),linetype=1, size = .5) +
+    geom_ribbon(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
+                linetype=2, size = .5,alpha=0.1,fill = "#004D40",color="#1E88E5")+
+    geom_line(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = day,y = prediction, 
+                                                                       group = 1, color = "Corrected Estimate"),size=1) +
+    geom_ribbon(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
+                fill = "#D81B60", linetype=2, alpha=0.3)+
+    labs(x = "", y = "Weekly Number of Cases",caption = paste0("Last updated using reported cases until ",
+                                                               max(merged_data$ew_start))) +
+    theme(axis.text.x = element_text(size=18), legend.text = element_text(size = 14),
+          legend.title = element_text( size = 16,face="bold"),
+          axis.title=element_text(size=18),plot.title = element_text(size=12))+
+    theme_bw()+
+    scale_x_date(date_labels = "%B",date_breaks = "3 month")+
+    scale_colour_manual("", 
+                        breaks = c("Reported Cases \n (subject to delays)", "Corrected Estimate","Fitted Model"),
+                        values = c("Reported Cases \n (subject to delays)" = "#004D40", 
+                                   "Corrected Estimate" = "#D81B60",
+                                   "Fitted Model"="#1E88E5")) +
+    theme(legend.position = "top",
+          legend.key.size = unit(1.2,"line"),
+          legend.key.width= unit(2, 'line'),
+          legend.text=element_text(size=12),
+          axis.text.x = element_text(size = 12, angle = 45, colour = "black",
+                                     vjust = 1, hjust = 1), 
+          axis.title = element_text(size = 12), 
+          panel.grid.minor = element_blank(), 
+          axis.line = element_line(colour = "black"), 
+          panel.border = element_blank(), 
+          panel.grid.major.x = element_blank(), 
+          panel.grid.major.y = element_line(color = "gray79",
+                                            size = 0.25, 
+                                            linetype = 4),
+          strip.text = element_text(face = "bold"),
+          strip.background = element_blank(),
+          panel.spacing = unit(2, "lines"))+
+    coord_cartesian(expand = FALSE) +  
+    scale_y_continuous(labels = scales::comma)+
+    ggtitle(paste0("Panel plot - Dengue in ", uf, " (BR)"))+
+    facet_wrap(facets = year ~ .)
 }
 
 

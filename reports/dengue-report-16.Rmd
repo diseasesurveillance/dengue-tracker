@@ -57,6 +57,10 @@ data <- model_preds |> filter(uf==state)
 plot_trends_data(data, state)
 ```
 
+```{r, fig.width=9, fig.height=9}
+panel_plot_states(data, state)
+```
+
 ---
 title: "Dengue Report - `r state`"
 ---

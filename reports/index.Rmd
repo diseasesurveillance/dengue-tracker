@@ -17,10 +17,6 @@ source("plotting_functions.R")
 
 Dengue data from surveillance systems is crucial for prevention and control. Unfortunately, this data is often delayed, preventing timely decision-making and resource allocation. In [Dengue-tracker](https://diseasesurveillance.github.io/dengue-tracker/index.html), we provide weekly updates on the number of official dengue cases per state in Brazil. Additionally, we present corrected case counts incorporating information from Google Trends. We believe these reports will assist policymakers in understanding dengue levels and guide their decisions.
 
-Dengue-tracker is part of the [disease surveillance project](https://diseasesurveillance.github.io/){target="_blank"}.
-
-Funding for this work is provided by the [Letten Foundation](https://letten.foundation/){target="_blank"}.
-
 
 ```{r process-data, echo = FALSE}
 model_preds <- generate_data(brazil_ufs, gamma = 0.90)
