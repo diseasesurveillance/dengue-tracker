@@ -22,7 +22,7 @@ library(rvest)
 states_map <- geobr::read_state(showProgress = F)
 
 brazil_ufs <- c(
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES","GO",
   "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 )
@@ -74,7 +74,10 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
   }
   filename <- sprintf("BR_%s_infodengue.csv", last_ew_start)
   file_path <- paste0("data/weekly_data/infodengue/", filename)
-  result <- aggregate(sum_of_cases ~ ew_start, data = data_, FUN = sum)
+  result <- data_ |>
+    group_by(ew_start) |>
+    mutate(sum_of_cases = sum(sum_of_cases), cases_est_id = sum(cases_est_id), cases_est_id_max = sum(cases_est_id_max), cases_est_id_min = sum(cases_est_id_min)) |>
+    distinct()  
   write.csv(result, file_path, row.names = F)
   cat("\nSuccessfully saved ", filename, "\n")
 }
@@ -98,9 +101,7 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
 
 
 process_data <- function(uf, last_ew_start) {
-  ## delete in future
-  last_ew_start <- '2024-02-25'
-  ##
+
   gt_filename <- sprintf("data/weekly_data/gtrends/%s_trends.csv", uf)
   cases_filename <- sprintf("data/weekly_data/infodengue/%s_%s_infodengue.csv", uf, last_ew_start)
 
@@ -118,13 +119,14 @@ process_data <- function(uf, last_ew_start) {
   cases$ew_start <- as.Date(cases$ew_start)
   trends$Week <- as.Date(trends$Week)
   
-  ## to delete:
-  trends <- trends[, !colnames(trends) %in% c("tratamento.dengue")]
+  ##
+  trends <- trends[, !colnames(trends) %in% "tratamento.dengue"]
   ##
   
   topics <- colnames(trends)[-1]
 
   merged_data <- merge(cases, trends, by.x = "ew_start", by.y = "Week", all = TRUE)
+
   
   # Convert all "<1" values to 0 in all columns
   for (col in names(merged_data)) {
@@ -140,7 +142,8 @@ process_data <- function(uf, last_ew_start) {
 }
 
 
-run_model <- function(merged_data, topics, gamma, K = 5) {
+run_model <- function(merged_data, topics, gamma, K = 6) {
+  
   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
   best_linear_transform <- lm(
     as.formula(formula_str),
@@ -154,7 +157,6 @@ run_model <- function(merged_data, topics, gamma, K = 5) {
   )
 
   prediction_lower <- predict(best_linear_transform_lower, merged_data)
-
 
   best_linear_transform_upper <- rq(as.formula(formula_str),
     merged_data[1:(nrow(merged_data) - K), ],
@@ -198,7 +200,6 @@ generate_data <- function(ufs, gamma = 0.95) {
 
     final_df <- rbind(final_df, merged_data)
   }
-  last_ew_start <- "2024-02-25"
   write.csv(final_df,
             sprintf("data/model_results/model_%s.csv", last_ew_start),
             row.names = F)
@@ -215,7 +216,6 @@ generate_data_all_country <- function(gamma = 0.95) {
   
   merged_data <- run_model(final_data, topics, gamma)
   
-  last_ew_start <- "2024-02-25"
   write.csv(merged_data,
             sprintf("data/model_results/model_%s_%s.csv", last_ew_start, "BR"),
             row.names = F)

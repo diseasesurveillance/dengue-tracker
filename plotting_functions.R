@@ -61,7 +61,7 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
 }
 
 
-panel_plot_states <- function(merged_data, uf, K = 5) {
+panel_plot_states <- function(merged_data, uf, K = 6) {
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data$year <- format(as.Date(merged_data$ew_start, format="%d/%m/%Y"),"%Y")
   merged_data$day <- as.Date(format(merged_data$ew_start,"%d/%m"), "%d/%m")
@@ -73,11 +73,13 @@ panel_plot_states <- function(merged_data, uf, K = 5) {
     geom_line(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = day,y = prediction, 
                                                                        group = 1, color = "Fitted Model"),linetype=1, size = .5) +
     geom_ribbon(data=merged_data %>% filter(ew_start<=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
-                linetype=2, size = .5,alpha=0.1,fill = "#004D40",color="#1E88E5")+
+                linetype=2, size = .5,alpha=0.1,fill = "#003f5c",color="#003f5c")+
     geom_line(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = day,y = prediction, 
-                                                                       group = 1, color = "Corrected Estimate"),size=1) +
+                                                                       group = 1, color = "Estimate via Google Trends"),size=1) +
     geom_ribbon(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
+    geom_line(data=merged_data %>% filter(ew_start>=date_no_delay),aes(x = day,y = cases_est_id, 
+                                                                       group = 2, color = "Estimate via InfoDengue"),size=1) +
     labs(x = "",
          y = "Number of weekly suspected cases",
          caption = paste0(
@@ -93,10 +95,11 @@ panel_plot_states <- function(merged_data, uf, K = 5) {
     theme_bw()+
     scale_x_date(date_labels = "%B",date_breaks = "3 month")+
     scale_colour_manual("", 
-                        breaks = c("Suspected Cases \n (subject to delays)", "Corrected Estimate","Fitted Model"),
-                        values = c("Suspected Cases \n (subject to delays)" = "#004D40", 
-                                   "Corrected Estimate" = "#D81B60",
-                                   "Fitted Model"="#1E88E5")) +
+                        breaks = c("Suspected Cases \n (subject to delays)", "Fitted Model", "Estimate via Google Trends","Estimate via InfoDengue"),
+                        values = c("Suspected Cases \n (subject to delays)" = "#ffa600", 
+                                   "Fitted Model"="#003f5c",
+                                   "Estimate via Google Trends" = "#ef5675",
+                                   "Estimate via InfoDengue" = "#7a5195")) +
     theme(legend.position = "top",
           legend.key.size = unit(1.2,"line"),
           legend.key.width= unit(2, 'line'),
@@ -119,7 +122,6 @@ panel_plot_states <- function(merged_data, uf, K = 5) {
     ggtitle(ifelse(uf == "Brazil", "Panel plot - Dengue in Brazil", 
                    paste("Panel plot - Dengue in", uf, "(BR)")))+
     facet_wrap(facets = year ~ .)
-  
 }
 
 
@@ -137,7 +139,7 @@ fnTimeplot <- function(dF) {
 }
 
 
-plot_trends_data <- function(merged_data, uf, K = 5) {
+plot_trends_data <- function(merged_data, uf, K = 6) {
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data <- merged_data %>% filter(ew_start >= "2021-01-01")
   fig <- ggplot(merged_data) +
@@ -154,16 +156,20 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
     ), linetype = 1, size = .5) +
     geom_ribbon(
       data = merged_data %>% filter(ew_start <= date_no_delay), aes(x = ew_start, ymin = lwr, ymax = upr),
-      linetype = 2, size = .5, alpha = 0.1, fill = "#004D40", color = "#1E88E5"
+      linetype = 2, size = .5, alpha = 0.1, fill = "#003f5c",color="#003f5c"
     ) +
     geom_line(data = merged_data %>% filter(ew_start >= date_no_delay), aes(
       x = ew_start, y = prediction,
-      group = 1, color = "Corrected Estimate"
+      group = 1, color = "Estimate via Google Trends"
     ), size = 1) +
     geom_ribbon(
       data = merged_data %>% filter(ew_start >= date_no_delay), aes(x = ew_start, ymin = lwr, ymax = upr),
       fill = "#D81B60", linetype = 2, alpha = 0.3
     ) +
+    geom_line(data = merged_data %>% filter(ew_start >= date_no_delay), aes(
+      x = ew_start, y = cases_est_id,
+      group = 1, color = "Estimate via InfoDengue"
+    ), size = 1) +
     labs(
       x = "", y = "Number of weekly suspected cases",
       caption = paste0(
@@ -184,15 +190,13 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
       date_labels = "%b/%y"
     ) +
     scale_colour_manual("",
-      breaks = c("Suspected Cases \n (subject to delays)", "Corrected Estimate", "Fitted Model"),
-      values = c(
-        "Suspected Cases \n (subject to delays)" = "#004D40",
-        "Corrected Estimate" = "#D81B60",
-        "Fitted Model" = "#1E88E5"
-      )
-    ) +
+                        breaks = c("Suspected Cases \n (subject to delays)", "Fitted Model", "Estimate via Google Trends","Estimate via InfoDengue"),
+                        values = c("Suspected Cases \n (subject to delays)" = "#ffa600", 
+                                   "Fitted Model"="#003f5c",
+                                   "Estimate via Google Trends" = "#ef5675",
+                                   "Estimate via InfoDengue" = "#7a5195")) +
     theme(
-      legend.position = c(.15, .9),
+      legend.position = c(.175, .8),
       legend.key.size = unit(1.2, "line"),
       legend.key.width = unit(2, "line"),
       legend.text = element_text(size = 12),

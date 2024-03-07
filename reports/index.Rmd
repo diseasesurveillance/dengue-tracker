@@ -55,6 +55,6 @@ plot_trends_data(model_preds, "Brazil")
 }
 </style>
 
-```{r, fig.width=7, fig.height=9, fig.align='center'}
+```{r, fig.width=9.5, fig.height=9, fig.align='left'}
 panel_plot_states(model_preds, "Brazil")
 ```
