@@ -44,7 +44,7 @@ state_level_cloropleth(model_preds, states_map)
 ### Corrected number of suspected dengue cases via Google Trends
 
 ```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
-model_preds <- generate_data_all_country(gamma = 0.90)
+model_preds <- generate_data_all_country(gamma = 0.95)
 
 plot_trends_data(model_preds, "Brazil")
 ```

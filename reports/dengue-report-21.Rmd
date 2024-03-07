@@ -50,7 +50,7 @@ state <- state_code |>
   select(short) |>
   as.character()
 
-model_preds <- generate_data(brazil_ufs, gamma = 0.90)
+model_preds <- generate_data(brazil_ufs, gamma = 0.95)
 
 data <- model_preds |> filter(uf==state)
 
@@ -63,7 +63,7 @@ plot_trends_data(data, state)
 }
 </style>
 
-```{r, fig.width=9.5, fig.height=9, fig.align='left'}
+```{r, fig.width=10, fig.height=9, fig.align='left'}
 panel_plot_states(data, state)
 ```
 
