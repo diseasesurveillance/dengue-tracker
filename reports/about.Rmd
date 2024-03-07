@@ -15,18 +15,20 @@ Although many infections of the dengue virus (DENV) do not show symptoms or only
 
 ### Model for Dengue Nowcasting
 
-Dengue data from surveillance systems is crucial for prevention and control. Unfortunately, this data is often delayed, preventing timely decision-making and resource allocation. In Dengue-tracker, we provide weekly updates on the number of official dengue cases per municipality in Brazil. Additionally, we present corrected case counts incorporating information from Google trends. We believe these reports will assist policymakers in understanding dengue levels and guide their decisions.
+Dengue data from surveillance systems is crucial for prevention and control. Unfortunately, this data is often delayed, preventing timely decision-making and resource allocation. In Dengue-tracker, we provide weekly updates on the number of official dengue cases per state in Brazil. Additionally, we present corrected case counts incorporating information from Google trends. We believe these reports will assist policymakers in understanding dengue levels and guide their decisions.
 
 
 We are currently using the following nowcasting model.
 Let $Y_{l,t}$ represent the count of new dengue cases in location $l$ during the $t$-th week. Assume we are currently at week $t=t_0$. One issue with the reporting system is that $Y_{l,t}$ cannot be trusted for $t$ close to $t_0$ due to delays in the reporting system. Our goal is therefore to correct such estimates. To do that, we assume that $Y_{l,t}$ can be trusted for $t\leq t_0-K$ (here, we take $K=5$).
 
-To predict $Y_{l,t}$ for recent weeks, we use searches in [Google Trends](https://trends.google.com.br/trends/). Specifically, let $X_{k,l,t}$ denote the volume of searches on Google Trends for term $k$ in the same location $l$ and week $t$. Here, the terms utilized for Google Trends searches include "Dengue," "Sintomas Dengue" (Dengue Symptoms), and "Tratamento Dengue" (Dengue Treatment). Our model is formulated as follows: $$Y_{l,t} = \beta_{0,l} + \sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t},$$
+To predict $Y_{l,t}$ for recent weeks, we use searches in [Google Trends](https://trends.google.com.br/trends/){target="_blank"}. Specifically, let $X_{k,l,t}$ denote the volume of searches on Google Trends for term $k$ in the same location $l$ and week $t$. Here, the terms utilized for Google Trends searches include "Dengue," "Sintomas Dengue" (Dengue Symptoms), and "Tratamento Dengue" (Dengue Treatment). Our model is formulated as follows: $$Y_{l,t} = \beta_{0,l} + \sum_{k=1}^{K} \beta_{k,l} \cdot X_{k,l,t} + \epsilon_{l,t},$$
 where $\epsilon_{l,t}$ has zero mean, but its variance can depend on the $x_{\cdot,l,t}$'s.
 This model essentially says that the number of cases is proportional to the Google Trends search activity.
 
 We fit the model independently for each location $l$ using all data points with $t \leq t_0-K$. We do this via standard least squares. Then, we estimate $Y_{l,t}$ for recent weeks via $$Y_{l,t} = \widehat \beta_{0,l} + \sum_{k=1}^{K} \widehat \beta_{k,l} \cdot X_{k,l,t},$$ where $\widehat \beta$'s represent the least squares estimates.
 
-We compute prediction sets via [conformalized quantile regression](https://proceedings.neurips.cc/paper_files/paper/2019/file/5103c3584b063c431bd1268e9b5e76fb-Paper.pdf), where the base models are obtained via linear quantile regression of $Y$ on $x$.
+We compute prediction sets via [conformalized quantile regression](https://proceedings.neurips.cc/paper_files/paper/2019/file/5103c3584b063c431bd1268e9b5e76fb-Paper.pdf){target="_blank"}, where the base models are obtained via linear quantile regression of $Y$ on $x$.
 
-We download the number of reported cases from [Info Dengue API](https://info.dengue.mat.br/services/) on a weekly basis.
+We download the number of reported cases from [Info Dengue API](https://info.dengue.mat.br/services/){target="_blank"} on a weekly basis.
+
+For InfoDengue estimates and weekly reports on municipality level, visit their [platform](https://info.dengue.mat.br/){target="_blank"}. The InfoDengue estimates used on our graphs are made by summing the estimates for all cities in a given state.

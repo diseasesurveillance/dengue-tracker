@@ -581,8 +581,8 @@ the mosquitoes that act as vectors.</p>
 <p>Dengue data from surveillance systems is crucial for prevention and
 control. Unfortunately, this data is often delayed, preventing timely
 decision-making and resource allocation. In Dengue-tracker, we provide
-weekly updates on the number of official dengue cases per municipality
-in Brazil. Additionally, we present corrected case counts incorporating
+weekly updates on the number of official dengue cases per state in
+Brazil. Additionally, we present corrected case counts incorporating
 information from Google trends. We believe these reports will assist
 policymakers in understanding dengue levels and guide their
 decisions.</p>
@@ -598,9 +598,9 @@ assume that <span class="math inline">\(Y_{l,t}\)</span> can be trusted
 for <span class="math inline">\(t\leq t_0-K\)</span> (here, we take
 <span class="math inline">\(K=5\)</span>).</p>
 <p>To predict <span class="math inline">\(Y_{l,t}\)</span> for recent
-weeks, we use searches in <a href="https://trends.google.com.br/trends/">Google Trends</a>.
-Specifically, let <span class="math inline">\(X_{k,l,t}\)</span> denote
-the volume of searches on Google Trends for term <span class="math inline">\(k\)</span> in the same location <span class="math inline">\(l\)</span> and week <span class="math inline">\(t\)</span>. Here, the terms utilized for Google
+weeks, we use searches in <a href="https://trends.google.com.br/trends/" target="_blank">Google Trends</a>. Specifically, let <span class="math inline">\(X_{k,l,t}\)</span> denote the volume of searches
+on Google Trends for term <span class="math inline">\(k\)</span> in the
+same location <span class="math inline">\(l\)</span> and week <span class="math inline">\(t\)</span>. Here, the terms utilized for Google
 Trends searches include “Dengue,” “Sintomas Dengue” (Dengue Symptoms),
 and “Tratamento Dengue” (Dengue Treatment). Our model is formulated as
 follows: <span class="math display">\[Y_{l,t} = \beta_{0,l} +
@@ -613,11 +613,14 @@ search activity.</p>
 least squares. Then, we estimate <span class="math inline">\(Y_{l,t}\)</span> for recent weeks via <span class="math display">\[Y_{l,t} = \widehat \beta_{0,l} + \sum_{k=1}^{K}
 \widehat \beta_{k,l} \cdot X_{k,l,t},\]</span> where <span class="math inline">\(\widehat \beta\)</span>’s represent the least
 squares estimates.</p>
-<p>We compute prediction sets via <a href="https://proceedings.neurips.cc/paper_files/paper/2019/file/5103c3584b063c431bd1268e9b5e76fb-Paper.pdf">conformalized
-quantile regression</a>, where the base models are obtained via linear
-quantile regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(x\)</span>.</p>
-<p>We download the number of reported cases from <a href="https://info.dengue.mat.br/services/">Info Dengue API</a> on a
-weekly basis.</p>
+<p>We compute prediction sets via <a href="https://proceedings.neurips.cc/paper_files/paper/2019/file/5103c3584b063c431bd1268e9b5e76fb-Paper.pdf" target="_blank">conformalized quantile regression</a>, where the base
+models are obtained via linear quantile regression of <span class="math inline">\(Y\)</span> on <span class="math inline">\(x\)</span>.</p>
+<p>We download the number of reported cases from <a href="https://info.dengue.mat.br/services/" target="_blank">Info Dengue
+API</a> on a weekly basis.</p>
+<p>For InfoDengue estimates and weekly reports on municipality level,
+visit their <a href="https://info.dengue.mat.br/" target="_blank">platform</a>. The InfoDengue estimates used on our
+graphs are made by summing the estimates for all cities in a given
+state.</p>
 </div>
 </div>
 
