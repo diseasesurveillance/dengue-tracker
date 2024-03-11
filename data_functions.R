@@ -101,7 +101,7 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
 
 
 process_data <- function(uf, last_ew_start) {
-
+  last_ew_start <- "2024-03-03"
   gt_filename <- sprintf("data/weekly_data/gtrends/%s_trends.csv", uf)
   cases_filename <- sprintf("data/weekly_data/infodengue/%s_%s_infodengue.csv", uf, last_ew_start)
 
@@ -127,7 +127,6 @@ process_data <- function(uf, last_ew_start) {
 
   merged_data <- merge(cases, trends, by.x = "ew_start", by.y = "Week", all = TRUE)
 
-  
   # Convert all "<1" values to 0 in all columns
   for (col in names(merged_data)) {
     # Skip the ew_start column

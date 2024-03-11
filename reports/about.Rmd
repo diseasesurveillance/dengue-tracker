@@ -32,3 +32,6 @@ We compute prediction sets via [conformalized quantile regression](https://proce
 We download the number of reported cases from [Info Dengue API](https://info.dengue.mat.br/services/){target="_blank"} on a weekly basis.
 
 For InfoDengue estimates and weekly reports on municipality level, visit their [platform](https://info.dengue.mat.br/){target="_blank"}. The InfoDengue estimates used on our graphs are made by summing the estimates for all cities in a given state.
+
+For InfoDengue (Fiocruz/FGV) estimates and weekly reports on municipality level, visit their [platform](https://info.dengue.mat.br/){target="_blank"}. The InfoDengue estimates used on our
+graphs are made by summing the estimates for all cities in a given state.

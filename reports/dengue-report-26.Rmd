@@ -63,7 +63,7 @@ plot_trends_data(data, state)
 }
 </style>
 
-```{r, fig.width=10, fig.height=9, fig.align='left'}
+```{r, fig.width=9.5, fig.height=9, fig.align='left'}
 panel_plot_states(data, state)
 ```
 
