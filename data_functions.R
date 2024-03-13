@@ -22,7 +22,7 @@ library(rvest)
 states_map <- geobr::read_state(showProgress = F)
 
 brazil_ufs <- c(
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES","GO",
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
   "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 )
@@ -101,7 +101,6 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
 
 
 process_data <- function(uf, last_ew_start) {
-  last_ew_start <- "2024-03-03"
   gt_filename <- sprintf("data/weekly_data/gtrends/%s_trends.csv", uf)
   cases_filename <- sprintf("data/weekly_data/infodengue/%s_%s_infodengue.csv", uf, last_ew_start)
 
