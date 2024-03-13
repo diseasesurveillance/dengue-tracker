@@ -140,7 +140,7 @@ process_data <- function(uf, last_ew_start) {
 }
 
 
-run_model <- function(merged_data, topics, gamma, K = 6) {
+run_model <- function(merged_data, topics, gamma, K = 4) {
   
   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
   best_linear_transform <- lm(
