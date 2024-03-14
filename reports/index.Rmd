@@ -41,9 +41,23 @@ state_level_cloropleth(model_preds, states_map)
  
 <br>
 
+### Time series for each state (from 2024 onwards)
+
+<style>
+.html-widget {
+    margin: auto;
+}
+</style>
+
+```{r facet-plot, fig.width=16, fig.height=13, fig.align = 'right', echo = FALSE}
+data <- generate_data(brazil_ufs, gamma = 0.95)
+
+plot_geofacet(data)
+```
+
 ### Corrected number of suspected dengue cases via Google Trends
 
-```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
+```{r trends-plot, fig.width=11, fig.height=4, fig.align = 'left', echo = FALSE}
 model_preds <- generate_data_all_country(gamma = 0.95)
 
 plot_trends_data(model_preds, "Brazil")
@@ -55,6 +69,8 @@ plot_trends_data(model_preds, "Brazil")
 }
 </style>
 
-```{r, fig.width=9.5, fig.height=9, fig.align='left'}
+
+
+```{r, fig.width=11, fig.height=9, fig.align='left'}
 panel_plot_states(model_preds, "Brazil")
 ```

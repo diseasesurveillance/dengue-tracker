@@ -44,7 +44,7 @@ dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in
 
 ### Corrected number of suspected dengue cases via Google Trends
 
-```{r trends-plot, fig.width=9, fig.height=4, fig.align = 'left', echo = FALSE}
+```{r trends-plot, fig.width=11, fig.height=4, fig.align = 'left', echo = FALSE}
 state <- state_code |>
   filter(state_n == inputSelectLoc2) |>
   select(short) |>
@@ -63,7 +63,7 @@ plot_trends_data(data, state)
 }
 </style>
 
-```{r, fig.width=9.5, fig.height=9, fig.align='left'}
+```{r, fig.width=11, fig.height=9, fig.align='left'}
 panel_plot_states(data, state)
 ```
 
