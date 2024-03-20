@@ -67,14 +67,21 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
       ey_start = 2018,
       ey_end = 2024
     )
+
     filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
-    file_path <- paste0("data/weekly_data/infodengue/", filename)
+    ew <- max(infodengue_data$ew)
+ 
+    file_path <- sprintf("data/weekly_data/infodengue/%s", ew)
+    if (!file.exists(file_path)) {
+      dir.create(file_path, recursive=T)
+    }
+
     data_ <- rbind(data_, infodengue_data)
-    write.csv(infodengue_data, file_path, row.names = F)
+    write.csv(infodengue_data, file.path(file_path, filename), row.names = F)
     cat("\nSuccessfully saved ", filename, "\n")
   }
   filename <- sprintf("BR_%s_infodengue.csv", last_ew_start)
-  file_path <- paste0("data/weekly_data/infodengue/", filename)
+  file_path <- sprintf("data/weekly_data/infodengue/%s/%s", ew, filename)
   result <- data_ |>
     group_by(ew_start) |>
     mutate(sum_of_cases = sum(sum_of_cases), cases_est_id = sum(cases_est_id), cases_est_id_max = sum(cases_est_id_max), cases_est_id_min = sum(cases_est_id_min)) |>
@@ -102,8 +109,12 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
 
 
 process_data <- function(uf, last_ew_start) {
-  gt_filename <- sprintf("data/weekly_data/gtrends/%s_trends.csv", uf)
-  cases_filename <- sprintf("data/weekly_data/infodengue/%s_%s_infodengue.csv", uf, last_ew_start)
+  dir_path <- "data/weekly_data/infodengue"
+  dirs <- list.dirs(dir_path, full.names=T)
+  ew <- max(gsub(".*/(\\d+)$", "\\1", dirs)[-1])
+  
+  gt_filename <- sprintf("data/weekly_data/gtrends/%s/%s_trends.csv", ew, uf)
+  cases_filename <- sprintf("%s/%s_%s_infodengue.csv", file.path(dir_path, ew), uf, last_ew_start)
 
   cases <- read.csv(cases_filename, stringsAsFactors = FALSE)
   trends <- read.csv(gt_filename, stringsAsFactors = FALSE, skip = 2)
@@ -115,7 +126,9 @@ process_data <- function(uf, last_ew_start) {
 
   cases <- cases |>
     filter(ew_start >= min_week)
-
+  
+  trends <- trends |>
+    filter(Week <= max(cases$ew_start))
   cases$ew_start <- as.Date(cases$ew_start)
   trends$Week <- as.Date(trends$Week)
   
@@ -178,7 +191,7 @@ run_model <- function(merged_data, topics, gamma, K = 4) {
 }
 
 
-generate_data <- function(ufs, gamma = 0.95) {
+generate_data <- function(ufs, gamma = 0.95, save = T) {
   
   ## TODO: optimize the way this function is called. Currently, for each
   ## state, we're generating predictions for all states and then filtering
@@ -199,24 +212,27 @@ generate_data <- function(ufs, gamma = 0.95) {
 
     final_df <- rbind(final_df, merged_data)
   }
-  write.csv(final_df,
-            sprintf("data/model_results/model_%s.csv", last_ew_start),
-            row.names = F)
+  if (save) {
+    write.csv(final_df,
+              sprintf("data/model_results/model_%s.csv", last_ew_start),
+              row.names = F)
+  }
   final_df
 }
 
 
-generate_data_all_country <- function(gamma = 0.95) {
+generate_data_all_country <- function(gamma = 0.95, save = T) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
-  
+
   out <- process_data("BR", last_ew_start)
   final_data <- out[[1]]
   topics <- out[[2]]
   
   merged_data <- run_model(final_data, topics, gamma)
-  
-  write.csv(merged_data,
-            sprintf("data/model_results/model_%s_%s.csv", last_ew_start, "BR"),
-            row.names = F)
+  if (save) {
+    write.csv(merged_data,
+              sprintf("data/model_results/model_%s_%s.csv", last_ew_start, "BR"),
+              row.names = F)
+  }
   merged_data
 }
