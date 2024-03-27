@@ -24,7 +24,7 @@ states_map <- geobr::read_state(showProgress = F)
 
 brazil_ufs <- c(
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
-  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "MA",  "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 )
 
@@ -187,6 +187,45 @@ run_model <- function(merged_data, topics, gamma, K = 4) {
   merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
   merged_data$prediction <- pmax(prediction, 0)
 
+  return(merged_data)
+}
+
+
+run_model_2 <- function(merged_data, topics, gamma, K = 4) {
+  merged_data$weights <- 0.9^sqrt(nrow(merged_data):1)
+  
+  formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
+  best_linear_transform <- lm(
+    as.formula(formula_str),
+    merged_data[1:(nrow(merged_data) - K), ],
+    weights = weights
+  )
+  prediction <- predict(best_linear_transform, merged_data)
+  
+  best_linear_transform_lower <- rq(as.formula(formula_str),
+                                    merged_data[1:(nrow(merged_data) - K), ],
+                                    tau = (1 - gamma) / 2
+  )
+  
+  prediction_lower <- predict(best_linear_transform_lower, merged_data)
+  
+  best_linear_transform_upper <- rq(as.formula(formula_str),
+                                    merged_data[1:(nrow(merged_data) - K), ],
+                                    tau = 1 - (1 - gamma) / 2
+  )
+  prediction_upper <- predict(best_linear_transform_upper, merged_data)
+  
+  # error <-
+  #   apply(cbind(
+  #     prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
+  #     merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
+  #   ), 1, max)
+  
+  #quantile_error <- quantile(error, probs = gamma, na.rm = T)
+  merged_data$lwr <- pmax(prediction_lower, 0)
+  merged_data$upr <- pmax(prediction_upper, 0)
+  merged_data$prediction <- pmax(prediction, 0)
+  
   return(merged_data)
 }
 
