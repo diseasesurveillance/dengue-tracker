@@ -275,3 +275,19 @@ generate_data_all_country <- function(gamma = 0.95, save = T) {
   }
   merged_data
 }
+
+
+render_files <- function(folder_root_directory) {
+  rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$", full.names = TRUE)
+  for (file in rmd_files) {
+    filename <- tools::file_path_sans_ext(basename(file))
+    setwd(folder_root_directory)
+    rmarkdown::render(input = file, output_file = paste0("../docs/", filename, ".html"))
+  }
+}
+
+
+## Variables
+
+model_preds <- generate_data(brazil_ufs, gamma = 0.95)
+model_preds_br <- generate_data_all_country(gamma = 0.95)

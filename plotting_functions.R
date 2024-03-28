@@ -244,16 +244,6 @@ plot_trends_data <- function(merged_data, uf, K = 4) {
 }
 
 
-render_files <- function(folder_root_directory) {
-  rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$", full.names = TRUE)
-  for (file in rmd_files) {
-    filename <- tools::file_path_sans_ext(basename(file))
-    setwd(folder_root_directory)
-    rmarkdown::render(input = file, output_file = paste0("../docs/", filename, ".html"))
-  }
-}
-
-
 plot_geofacet <- function(merged_data, K = 4) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
   data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
@@ -295,5 +285,59 @@ plot_geofacet <- function(merged_data, K = 4) {
                                    "Estimate via InfoDengue" = "#7a5195")) +
     
     facet_geo(~ uf, grid = "br_states_grid1", label = "name", scale = "free_y") +
+    theme(strip.text = element_text(face="bold", size=11))
+}
+
+plot_geofacet_2 <- function(merged_data, states_map, K = 4) {
+  data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
+  data <- merge(
+    merge(data, states_map, by.x = "uf", by.y = "abbrev_state"),
+    population_state,
+    by.x = "name_state",
+    by.y = "Uf"
+  ) |> mutate(prevalence = (prediction/Pop)*10^5,
+              id_prev = (cases_est_id/Pop)*10^5,
+              cases_prev = (sum_of_cases/Pop)*10^5)
+  
+  data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
+  
+  date_no_delay <- data[nrow(data) - K, ]$ew_start
+  
+  ggplot(data) +
+    geom_line(
+      aes(
+        x = ew_start, y = cases_prev, group = 1,
+        colour = "Suspected Cases \n (subject to delays)"
+      ),
+      size = 1
+    ) +
+    geom_line(data = data |> filter(ew_start <= date_no_delay), aes(
+      x = ew_start, y = prevalence,
+      group = 1, color = "Fitted Model"
+    ), linetype = 1, size = .5) +
+    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = prevalence, 
+                                                               group = 1, color = "Estimate via Google Trends \n (95% C.I.)"),size=1) +
+    # geom_ribbon(data=data |> filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
+    #             fill = "#D81B60", linetype=2, alpha=0.3)+
+    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = id_prev, 
+                                                               group = 2, color = "Estimate via InfoDengue"),size=1) +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, colour = "black",
+                                     vjust = 1, hjust = 1),
+          axis.title = element_blank(),
+          legend.key.height= unit(2, 'cm'),
+          legend.key.width= unit(2, 'cm'),
+          legend.text = element_text(size=15),
+          legend.position = c(0.15, 0.15)) +
+    scale_x_date(date_labels = "%B",date_breaks = "1 month")+
+    scale_y_continuous(expand = c(0, 0), limits=c(0, NA), labels = scales::unit_format(scale = 1e-3, unit = "k")) +
+    scale_colour_manual("", 
+                        breaks = c("Suspected Cases \n (subject to delays)", "Fitted Model", "Estimate via Google Trends \n (95% C.I.)","Estimate via InfoDengue"),
+                        values = c("Suspected Cases \n (subject to delays)" = "#ffa600", 
+                                   "Fitted Model"="#003f5c",
+                                   "Estimate via Google Trends \n (95% C.I.)" = "#ef5675",
+                                   "Estimate via InfoDengue" = "#7a5195")) +
+    
+    facet_geo(~ uf, grid = "br_states_grid1", label = "name") +
     theme(strip.text = element_text(face="bold", size=11))
 }
