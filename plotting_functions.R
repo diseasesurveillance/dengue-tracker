@@ -62,6 +62,7 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
 
 
 panel_plot_states <- function(merged_data, uf, K = 4) {
+  if (uf == "ES") K <- 12
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data$year <- format(as.Date(merged_data$ew_start, format="%d/%m/%Y"),"%Y")
   merged_data$day <- as.Date(format(merged_data$ew_start,"%d/%m"), "%d/%m")
@@ -153,6 +154,7 @@ fnTimeplot <- function(dF) {
 
 
 plot_trends_data <- function(merged_data, uf, K = 4) {
+  if (uf == "ES") K <- 12
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data <- merged_data |> filter(ew_start >= "2021-01-01")
   

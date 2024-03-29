@@ -246,8 +246,11 @@ generate_data <- function(ufs, gamma = 0.95, save = T) {
     out <- process_data(uf, last_ew_start)
     data <- out[[1]]
     topics <- out[[2]]
-
-    merged_data <- run_model(data, topics, gamma)
+    
+    K <- 4
+    if(uf == "ES") K <- 12
+    
+    merged_data <- run_model(data, topics, gamma, K = K)
 
     final_df <- rbind(final_df, merged_data)
   }
