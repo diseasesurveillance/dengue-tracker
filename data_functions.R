@@ -10,14 +10,13 @@ library(apexcharter)
 library(highcharter)
 library(leaflet.extras)
 library(leafgl)
-library(shinydashboard)
 library(vroom)
 library(plotly)
 library(viridis)
-library(shinyWidgets)
 library(quantreg)
 library(lubridate)
 library(rvest)
+library(denguetracker)
 
 
 states_map <- geobr::read_state(showProgress = F)
@@ -108,10 +107,10 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
 }
 
 
-process_data <- function(uf, last_ew_start) {
+process_data <- function(uf, last_ew_start, ew = NULL) {
   dir_path <- "data/weekly_data/infodengue"
   dirs <- list.dirs(dir_path, full.names=T)
-  ew <- max(gsub(".*/(\\d+)$", "\\1", dirs)[-1])
+  if (is.null(ew)) ew <- max(gsub(".*/(\\d+)$", "\\1", dirs)[-1])
   
   gt_filename <- sprintf("data/weekly_data/gtrends/%s/%s_trends.csv", ew, uf)
   cases_filename <- sprintf("%s/%s_%s_infodengue.csv", file.path(dir_path, ew), uf, last_ew_start)
@@ -192,7 +191,7 @@ run_model <- function(merged_data, topics, gamma, K = 4) {
 
 
 run_model_2 <- function(merged_data, topics, gamma, K = 4) {
-  merged_data$weights <- 0.9^sqrt(nrow(merged_data):1)
+  merged_data$weights <- 0.5^sqrt(nrow(merged_data):1)
   
   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
   best_linear_transform <- lm(
@@ -280,7 +279,7 @@ generate_data_all_country <- function(gamma = 0.95, save = T) {
 }
 
 
-render_files <- function(folder_root_directory) {
+render_files <- function(folder_root_directory = rprojroot::find_rstudio_root_file()) {
   rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$", full.names = TRUE)
   for (file in rmd_files) {
     filename <- tools::file_path_sans_ext(basename(file))
