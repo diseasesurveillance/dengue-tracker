@@ -1,34 +1,3 @@
-fnMapFiltered <- function(vSelectTime, inputSelectLoc2, inputSelectVble) {
-  dtime <- d[which(d$idtime == vSelectTime), ]
-  map <- left_join(map, dtime, by = c("idloc" = "idloc"))
-  map <- map[which(map$idloc2 == inputSelectLoc2), ]
-
-  map$vble <- map[, inputSelectVble, drop = TRUE]
-  return(map)
-}
-
-
-fnLeafletMap <- function(mapF) {
-  labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
-
-  # mapF <- mapFiltered()
-  pal <- colorNumeric("YlOrRd", domain = mapF$vble)
-  labels <- sprintf("<strong> %s </strong> <br/> %g ", mapF$nameloc, mapF$vble) |>
-    lapply(htmltools::HTML)
-
-  leaflet(mapF) |>
-    addTiles() |> # setView(lng = latIni, lat = longIni, zoom = zoomIni) |>
-    addPolygons(
-      fillColor = ~ pal(vble), layerId = ~idloc, group = "poly",
-      weight = 1, opacity = 1, color = "white", dashArray = "1", fillOpacity = 0.7,
-      label = labels, labelOptions = labelOptionss,
-      highlightOptions = highlightOptions(weight = 3, color = "gray", dashArray = "", fillOpacity = 0.7, bringToFront = FALSE)
-    ) |>
-    addLegend(pal = pal, values = ~vble, opacity = 0.7, title = NULL, position = "bottomright") |>
-    addSearchFeatures(targetGroups = "poly", options = searchFeaturesOptions(zoom = 7, autoCollapse = TRUE, openPopup = TRUE))
-}
-
-
 state_level_cloropleth <- function(predicted_cases, states_map) {
   cases <- predicted_cases |>
     filter(ew_start == max(ew_start)) |>
@@ -61,8 +30,8 @@ state_level_cloropleth <- function(predicted_cases, states_map) {
 }
 
 
-panel_plot_states <- function(merged_data, uf, K = 4) {
-  if (uf == "ES") K <- 12
+panel_plot_states <- function(merged_data, uf, K = 5) {
+  if (uf == "ES") K <- 15
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data$year <- format(as.Date(merged_data$ew_start, format="%d/%m/%Y"),"%Y")
   merged_data$day <- as.Date(format(merged_data$ew_start,"%d/%m"), "%d/%m")
@@ -89,7 +58,7 @@ panel_plot_states <- function(merged_data, uf, K = 4) {
               size=1) +
     geom_ribbon(data=merged_data |> filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
-    geom_line(data=merged_data |> filter(ew_start>=date_no_delay),
+    geom_line(data=merged_data |> filter(ew_start>=date_no_delay %m-% weeks(3)),
               aes(x = day,y = cases_est_id, group = 2, color = "Estimate via InfoDengue", text = desc_id), 
               size=1) +
     labs(x = "",
@@ -139,22 +108,8 @@ panel_plot_states <- function(merged_data, uf, K = 4) {
 }
 
 
-fnDFiltered <- function(inputSelectVble, mapF) {
-  dFiltered <- as.data.frame(d)
-  dFiltered <- dFiltered[which(dFiltered$idloc %in% mapF$idloc), ] # select idloc in mapF (in state)
-  dFiltered$vble <- dFiltered[, inputSelectVble]
-  return(dFiltered)
-}
-
-
-fnTimeplot <- function(dF) {
-  dF <- dF[order(dF$idtime), ]
-  apex(dF, aes(x = idtime, y = vble, group = idloc), type = "line") # |>
-}
-
-
-plot_trends_data <- function(merged_data, uf, K = 4) {
-  if (uf == "ES") K <- 12
+plot_trends_data <- function(merged_data, uf, K = 5) {
+  if (uf == "ES") K <- 15
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data <- merged_data |> filter(ew_start >= "2021-01-01")
   
@@ -189,7 +144,7 @@ plot_trends_data <- function(merged_data, uf, K = 4) {
       data = merged_data |> filter(ew_start >= date_no_delay), aes(x = ew_start, ymin = lwr, ymax = upr),
       fill = "#D81B60", linetype = 2, alpha = 0.3
     ) +
-    geom_line(data = merged_data |> filter(ew_start >= date_no_delay), aes(
+    geom_line(data = merged_data |> filter(ew_start >= date_no_delay %m-% weeks(3)), aes(
       x = ew_start, y = cases_est_id,
       group = 1, color = "Estimate via InfoDengue", text = desc_id
     ), size = 1) +
@@ -246,7 +201,7 @@ plot_trends_data <- function(merged_data, uf, K = 4) {
 }
 
 
-plot_geofacet <- function(merged_data, K = 4) {
+plot_geofacet <- function(merged_data, K = 5) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
   data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
   date_no_delay <- data[nrow(data) - K, ]$ew_start
@@ -267,7 +222,7 @@ plot_geofacet <- function(merged_data, K = 4) {
                                                                        group = 1, color = "Estimate via Google Trends \n (95% C.I.)"),size=1) +
     geom_ribbon(data=data |> filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = cases_est_id, 
+    geom_line(data=data |> filter(ew_start>=date_no_delay %m-% weeks(3)),aes(x = day,y = cases_est_id, 
                                                                        group = 2, color = "Estimate via InfoDengue"),size=1) +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 45, colour = "black",
@@ -290,7 +245,7 @@ plot_geofacet <- function(merged_data, K = 4) {
     theme(strip.text = element_text(face="bold", size=11))
 }
 
-plot_geofacet_2 <- function(merged_data, states_map, K = 4) {
+plot_geofacet_2 <- function(merged_data, states_map, K = 5) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
   data <- merge(
     merge(data, states_map, by.x = "uf", by.y = "abbrev_state"),
