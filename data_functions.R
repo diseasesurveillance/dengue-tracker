@@ -107,7 +107,25 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
 }
 
 
-process_data <- function(uf, last_ew_start, ew = NULL) {
+read_indep_covariates <- function(dir_path, uf, ew) {
+  keywords <- c("dengue", "sintomas")
+  trends <- data.frame()
+  
+  for (kw in keywords) {
+    gt_filename <- sprintf(
+      "data/weekly_data/gtrends/%s/independent_terms/%s_%s.csv", ew, uf, kw
+    )
+    trends_ <- read.csv(gt_filename, stringsAsFactors = FALSE, skip = 2)
+    colnames(trends_) <- gsub("\\.{3}.*$", "", colnames(trends_))
+    colnames(trends_)[colnames(trends_) == "Semana"] <- "Week"
+    
+    trends <- if(nrow(trends) == 0) trends_ else merge(trends, trends_, by = "Week")
+  }
+  
+  trends
+}
+
+process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
   dir_path <- "data/weekly_data/infodengue"
   dirs <- list.dirs(dir_path, full.names=T)
   if (is.null(ew)) ew <- max(gsub(".*/(\\d+)$", "\\1", dirs)[-1])
@@ -120,6 +138,8 @@ process_data <- function(uf, last_ew_start, ew = NULL) {
 
   colnames(trends) <- gsub("\\.{3}.*$", "", colnames(trends))
   colnames(trends)[colnames(trends) == "Semana"] <- "Week"
+
+  if(indep_cov) trends <- read_indep_covariates(dir_path, uf, ew)
 
   min_week <- min(trends$Week)
 
@@ -235,7 +255,6 @@ generate_data <- function(ufs, gamma = 0.95, save = T) {
 
   final_df <- data.frame()
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
-
   for (uf in ufs) {
     out <- process_data(uf, last_ew_start)
     data <- out[[1]]
@@ -267,7 +286,8 @@ generate_data_all_country <- function(gamma = 0.95, save = T) {
   final_data <- out[[1]]
   topics <- out[[2]]
   
-  merged_data <- run_model(final_data, topics, gamma)
+  K <- 5
+  merged_data <- run_model(final_data, topics, gamma, K = K)
   merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
 
   if (save) {
@@ -291,11 +311,10 @@ render_files <- function(folder_root_directory = rprojroot::find_rstudio_root_fi
 
 get_lowest_maes <- function(brazil_ufs) {
   lowest_maes <- tibble(uf = character(), decays = character(), MAE = numeric())
-  
+  model_preds <- generate_data(brazil_ufs, gamma = 0.95, save=F)
+
   for (UF in brazil_ufs) {
-    model_preds <- generate_data(brazil_ufs, gamma = 0.95, save=F)
-    
-    
+  
     data <- model_preds |>
       filter(uf==UF) |>
       select(ew_start, ew, sum_of_cases, dengue, sintomas.dengue, cases_est_id, prediction)
@@ -318,7 +337,7 @@ get_lowest_maes <- function(brazil_ufs) {
       expr <- parse(text = decay)
       
       if (expr != "None") data$weights <- eval(expr)
-
+      horizon <- 12
       mae <- numeric(nrow(data) - K - horizon)
       intercep <- numeric(nrow(data) - K - horizon)
       dengue <- numeric(nrow(data) - K - horizon)
@@ -340,7 +359,6 @@ get_lowest_maes <- function(brazil_ufs) {
         prediction <- predict(fit, data_to_predict)
         mae[model_id] <- mean(abs(tail(prediction, 4) - tail(data_to_predict, 4)$sum_of_cases))
         
-        
         model_id <- model_id + 1
         horizon <- horizon + 1
       }
@@ -361,7 +379,6 @@ get_lowest_maes <- function(brazil_ufs) {
       decay_id <- decay_id + 1
     }
     
-    
     results <- tibble(
       decays = decay_models,
       MAE = mae_decays
@@ -372,6 +389,8 @@ get_lowest_maes <- function(brazil_ufs) {
     
     lowest_maes <- bind_rows(lowest_maes, tibble(uf = UF, decays = lwst$decays, MAE = lwst$MAE))
   }
+  
+  lowest_maes
 }
 
 ## Variables
