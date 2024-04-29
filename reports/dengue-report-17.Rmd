@@ -29,11 +29,11 @@ inputSelectLoc2 <- 17
 
 # `r unique(map$nameloc2[which(map$idloc2 == inputSelectLoc2)])`
 
-```{r, echo = FALSE}
-mapF <- fnMapFiltered(vSelectTime, inputSelectLoc2, inputSelectVble)
-dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in state)
+<!--```{r, echo = FALSE}
+#mapF <- fnMapFiltered(vSelectTime, inputSelectLoc2, inputSelectVble)
+#dF <- fnDFiltered(inputSelectVble, mapF) # Select vble and locations in mapF (in state)
 ```
-
+-->
 <!---
 ### Dengue and Google trends in each state (now cases each municipality)
 

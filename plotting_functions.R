@@ -1,3 +1,13 @@
+fnMapFiltered <- function(vSelectTime, inputSelectLoc2, inputSelectVble) {
+  dtime <- d[which(d$idtime == vSelectTime), ]
+  map <- left_join(map, dtime, by = c("idloc" = "idloc"))
+  map <- map[which(map$idloc2 == inputSelectLoc2), ]
+  
+  map$vble <- map[, inputSelectVble, drop = TRUE]
+  return(map)
+}
+
+
 state_level_cloropleth <- function(predicted_cases, states_map) {
   cases <- predicted_cases |>
     filter(ew_start == max(ew_start)) |>
