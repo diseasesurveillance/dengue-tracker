@@ -92,18 +92,19 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
 
 download_infodengue_data_by_city <- function(brazil_ufs) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
-  
+
   for (uf in brazil_ufs) {
     infodengue_data <- denguetracker::fetch_data_from_cities(uf,
                                                             ey_start = 2018,
                                                             ey_end = 2024
     )
     filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
-    file_path <- paste0("data/weekly_data/infodengue/city/", filename)
+    ew <- max(infodengue_data$ew)
+    
+    file_path <- sprintf("data/weekly_data/infodengue/%s/city/%s", ew, filename)
     write.csv(infodengue_data, file_path, row.names = F)
     cat("\nSuccessfully saved ", filename, "\n")
   }
-  
 }
 
 
@@ -125,14 +126,15 @@ read_indep_covariates <- function(dir_path, uf, ew) {
   trends
 }
 
+
 process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
   dir_path <- "data/weekly_data/infodengue"
   dirs <- list.dirs(dir_path, full.names=T)
-  if (is.null(ew)) ew <- max(gsub(".*/(\\d+)$", "\\1", dirs)[-1])
+  if (is.null(ew)) ew <- max(gsub(".*/(\\d+)$", "\\1", gsub("/city", "", dirs))[-1])
   
   gt_filename <- sprintf("data/weekly_data/gtrends/%s/%s_trends.csv", ew, uf)
   cases_filename <- sprintf("%s/%s_%s_infodengue.csv", file.path(dir_path, ew), uf, last_ew_start)
-
+  
   cases <- read.csv(cases_filename, stringsAsFactors = FALSE)
   trends <- read.csv(gt_filename, stringsAsFactors = FALSE, skip = 2)
 
@@ -174,7 +176,7 @@ process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
 
 
 run_model <- function(merged_data, topics, gamma, K = 4) {
-  
+  if (unique(merged_data$uf == "RR")) topics <- c("dengue")
   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
   best_linear_transform <- lm(
     as.formula(formula_str),
