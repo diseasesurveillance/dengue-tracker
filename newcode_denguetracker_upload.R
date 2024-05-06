@@ -270,7 +270,10 @@ get_Measurement <- function(y_fitted, y , IF_log = F){
   return(M)
 }
 
+uf <- "AC"
+epi_week <- 202410
 
+epi_week <- 202411
 
 generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma = 0.05){
   
@@ -278,12 +281,14 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
     stop("Error! The length of prediction to compare should be equal to /smaller than the prediction length(K)!")}
   
   final_df <- data.frame()
-  epi_weeks <- seq(202410, 202417, by = 1)
+  epi_weeks <- seq(202411, 202417, by = 1)
   for(epi_week in epi_weeks){
     if(epi_week >= last(epi_weeks)- K+1){ break }
     # Dates for training model
     last_ew_start <- get_date(week = as.numeric(substr(epi_week,5,6)), year = as.numeric(substr(epi_week,1,4)))
+    print(last_ew_start)
     first_ew_start <- last_ew_start %m-% weeks(K)
+    
     file_last_ew_start <- last_ew_start %m+% weeks(1)
     # Dates for filtering data to compare
     file_last_ew_start_compare <- file_last_ew_start %m+% weeks(K)
@@ -293,10 +298,8 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
       data_train <- out_train[[1]]; topics <- out_train[[2]]
       
       out_compare <- process_data(uf, file_last_ew_start_compare, ew = epi_week + K)
-      data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=last_ew_start & ew_start > first_ew_start), K)
-
-      # print(tail(data_compare,K))
-      # print(tail(Naive,K))
+      data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(last_ew_start %m+% weeks(1)) & 
+                                                         ew_start > (first_ew_start %m+% weeks(1))), K)
       
       if(uf == "ES") { next }
       if(uf == "RR"){ next }
@@ -306,17 +309,17 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
       d3 <- run_model_SAR(data_train, topics, last_date = last_ew_start, K = K, critical_level = gamma)
       
       merged_data <- cbind(d1,d2[, (ncol(d2)-2):ncol(d2)], d3[, (ncol(d3)-2):ncol(d3)])
-
+      merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
       # Naive is using the last week case as prediction
-      Naive <- tail(data_train %>% filter(ew_start <= (last_ew_start %m-% weeks(1))
-                                                & ew_start >= (first_ew_start %m-% weeks(1))), K)
+      Naive <- tail(data_train %>% filter(ew_start <= (last_ew_start %m-% weeks(K-1))
+                                                & ew_start >= (first_ew_start %m-% weeks(K))), K)
+
       
-      
-      
-      out <- tibble(ew_start = data_compare$ew_start, ew_pred = epi_week,
+      # ew_pred is the week that we do this prediction
+      out <- tibble(ew_start = data_compare$ew_start, ew_pred = epi_week+1,
                     True = data_compare$sum_of_cases, Naive = Naive$sum_of_cases)
 
-      merged_data <- merge(tail(merged_data, compare_length), out, by = "ew_start")
+      merged_data <- tail(merge(merged_data, out, by = "ew_start"), compare_length)
 
       final_df <- rbind(final_df, merged_data)
       
@@ -331,9 +334,9 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
   final_df
 }
 
-# OUT <- generate_Prediction(brazil_ufs, compare_length = 4)
 
-temp <- generate_Prediction("AC", K = 5, compare_length = 4)
-generate_prediction(brazil_ufs, last_ew_start = as.Date("2024-04-28"))
+temp <- generate_Prediction("AC", K = 4, compare_length = 4)
+out <- generate_Prediction(brazil_ufs, )
 
-?merge
+
+
