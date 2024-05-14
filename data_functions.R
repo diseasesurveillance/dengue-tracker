@@ -23,7 +23,7 @@ states_map <- geobr::read_state(showProgress = F)
 
 brazil_ufs <- c(
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
-  "MA",  "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 )
 
@@ -212,16 +212,12 @@ run_model <- function(merged_data, topics, gamma, K = 4) {
 }
 
 
-run_model_2 <- function(merged_data, topics, gamma, K = 4) {
-  
-  uf <- merged_data$uf
-  merged_data$weights <- 1/exp(sqrt(nrow(merged_data):1))
-
-  formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
+run_model_variables <- function(merged_data, topics, gamma=0.95, K = 5) {
+  formula_str <- paste("sum_of_cases ~ meantemp_mean + meanumid_mean + inc_level + transmission + receptive + ",
+                       paste(topics, collapse = " + "))
   best_linear_transform <- lm(
     as.formula(formula_str),
-    merged_data[1:(nrow(merged_data) - K), ],
-    weights = weights
+    merged_data[1:(nrow(merged_data) - K), ]
   )
   prediction <- predict(best_linear_transform, merged_data)
   
@@ -238,36 +234,41 @@ run_model_2 <- function(merged_data, topics, gamma, K = 4) {
   )
   prediction_upper <- predict(best_linear_transform_upper, merged_data)
   
-  # error <-
-  #   apply(cbind(
-  #     prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
-  #     merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
-  #   ), 1, max)
+  error <-
+    apply(cbind(
+      prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
+      merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
+    ), 1, max)
   
-  #quantile_error <- quantile(error, probs = gamma, na.rm = T)
-  merged_data$lwr <- pmax(prediction_lower, 0)
-  merged_data$upr <- pmax(prediction_upper, 0)
+  quantile_error <- quantile(error, probs = gamma, na.rm = T)
+  merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
+  merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
   merged_data$prediction <- pmax(prediction, 0)
   
-  return(merged_data)
+  return(merged_data)   
 }
 
 
-generate_data <- function(ufs, gamma = 0.95, save = T) {
+generate_data <- function(ufs,
+                          last_ew_start = Sys.Date() - wday(Sys.Date()) + 1,
+                          ew = NULL,
+                          gamma = 0.95,
+                          save = T) {
 
   final_df <- data.frame()
-  last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
+
   for (uf in ufs) {
-    out <- process_data(uf, last_ew_start)
+    out <- process_data(uf, last_ew_start, ew = ew)
     data <- out[[1]]
     topics <- out[[2]]
     
-    K <- 5
+    K <- 4
     if(uf == "ES") K <- 15
     
     merged_data <- run_model(data, topics, gamma, K = K)
-    merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
-  
+    if (is.null(merged_data[nrow(merged_data), "sum_of_cases"])) {
+      merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
+    }
     final_df <- rbind(final_df, merged_data)
   }
   
@@ -283,11 +284,13 @@ generate_data <- function(ufs, gamma = 0.95, save = T) {
 
 generate_data_all_country <- function(gamma = 0.95, save = T) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
-
   out <- process_data("BR", last_ew_start)
   final_data <- out[[1]]
   topics <- out[[2]]
-  
+  final_data <- final_data |>
+    select(ew_start, ew, sum_of_cases, cases_est_id, cases_est_id_min,
+           cases_est_id_max, dengue, sintomas.dengue, uf) |>
+    unique()
   K <- 5
   merged_data <- run_model(final_data, topics, gamma, K = K)
   merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
@@ -399,7 +402,7 @@ get_lowest_maes <- function(brazil_ufs) {
 
 model_preds <- generate_data(brazil_ufs, gamma = 0.95)
 model_preds_br <- generate_data_all_country(gamma = 0.95)
-
+# 
 
 ## experiment
 
