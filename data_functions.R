@@ -92,7 +92,6 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
 
 download_infodengue_data_by_city <- function(brazil_ufs) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
-
   for (uf in brazil_ufs) {
     infodengue_data <- denguetracker::fetch_data_from_cities(uf,
                                                             ey_start = 2018,
@@ -100,7 +99,6 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
     )
     filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
     ew <- max(infodengue_data$ew)
-    
     file_path <- sprintf("data/weekly_data/infodengue/%s/city/%s", ew, filename)
     write.csv(infodengue_data, file_path, row.names = F)
     cat("\nSuccessfully saved ", filename, "\n")
