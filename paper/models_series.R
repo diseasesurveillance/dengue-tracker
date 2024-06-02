@@ -18,7 +18,7 @@ brazil_ufs <- c(
 )
 
 
-run_model_ARGO <- function(merged_data, topics, 
+run_model_DCGT <- function(merged_data, topics, 
                            last_date = NULL,
                            offset_lag = 1, offset_GT = 0.001,
                            K = 5, critical_level = 0.05,
@@ -43,15 +43,15 @@ run_model_ARGO <- function(merged_data, topics,
   forec <- forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = 1 - critical_level)
   
   # rearrange
-  forec_out <- tibble(ARGO_pred = as.numeric(exp(forec$mean) - offset_lag), 
-                      ARGO_lb = as.numeric(exp(forec$lower) - offset_lag),
-                      ARGO_ub = as.numeric(exp(forec$upper) - offset_lag))
+  forec_out <- tibble(DCGT_pred = as.numeric(exp(forec$mean) - offset_lag), 
+                      DCGT_lb = as.numeric(exp(forec$lower) - offset_lag),
+                      DCGT_ub = as.numeric(exp(forec$upper) - offset_lag))
   forec_out <- cbind(tail(merged_data, 20), forec_out)
   
   forec_out
 }
 
-run_model_SAR <- function(merged_data, topics, 
+run_model_DC <- function(merged_data, topics, 
                           last_date = NULL,
                           offset_lag = 1,
                           K = 4, critical_level = 0.05){
@@ -71,16 +71,16 @@ run_model_SAR <- function(merged_data, topics,
   forec <- forecast(fit, h = K,level = 1 - critical_level)
   
   # rearrange
-  forec_out <- tibble(SAR_pred = as.numeric(exp(forec$mean) - offset_lag), 
-                      SAR_lb = as.numeric(exp(forec$lower) - offset_lag),
-                      SAR_ub = as.numeric(exp(forec$upper) - offset_lag))
+  forec_out <- tibble(DC_pred = as.numeric(exp(forec$mean) - offset_lag), 
+                      DC_lb = as.numeric(exp(forec$lower) - offset_lag),
+                      DC_ub = as.numeric(exp(forec$upper) - offset_lag))
   forec_out <- cbind(tail(merged_data, 20), forec_out)
   
   forec_out
 }
 
 
-generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma = 0.05){
+generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save = T,  gamma = 0.05){
   
   # if(compare_length > K){
   #   stop("Error! The length of prediction to compare should be equal to /smaller than the prediction length(K)!")}
@@ -90,31 +90,32 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
   epi_weeks <- seq(202410, 202421, by = 1)
 
   for(epi_week in epi_weeks){
-    if(epi_week > last(epi_weeks)- K) { break }
+    # K_true should be larger than K
+    if(epi_week > last(epi_weeks)- K_true) { break }
     ## Dates for training model
     ew_start_ <- get_date(week = as.numeric(substr(epi_week, 5, 6)), year = as.numeric(substr(epi_week, 1, 4)))
-    
+
     ## Dates for filtering data to compare
     ew_start_compare <- ew_start_ %m+% weeks(K)
     epi_week_compare <- epi_week + K
     print(epi_week)
     for (uf in ufs) {
-      #print(uf)
       
-      out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
+      # out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
+      # Get K_ture is to control the delay of weeks for the "true data". The default value is 4.
+      out_compare <- process_data(uf, ew_start_ %m+% weeks(K_true + 1), ew = (epi_week_compare + K_true - K))
       data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
                                                          ew_start > (ew_start_ %m-% weeks(20))), 20)
-      #print(uf)
       if(uf == "ES") { next }
       if(uf == "RR"){ next }
       
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
       #data <- tail(data, 20)
-      data_argo <- run_model_ARGO(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
-      data_sar <- run_model_SAR(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
+      data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
+      data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
       
-      merged_data <- merge(data_argo, data_sar, by=names(data_argo)[1:(ncol(data_argo) - 3)])
+      merged_data <- merge(data_DCGT, data_DC, by=names(data_DCGT)[1:(ncol(data_DCGT) - 3)])
       #merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
       ## Naive is using the last week case as prediction
       # Naive <- tail(data %>% filter(ew_start <= ew_start_ %m-% weeks(K)
@@ -130,15 +131,24 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
       
       merged_data <- merged_data |> select(c("ew_start", "ew", "sum_of_cases", "cases_est_id", "cases_est_id_min",
                                              "cases_est_id_max", "dengue", "sintomas.dengue", "uf", "lwr",       
-                                             "upr", "prediction",  "ARGO_pred", "ARGO_lb", "ARGO_ub",   
-                                             "SAR_pred", "SAR_lb","SAR_ub" ,"ew_pred","True"))
+                                             "upr", "prediction",  "DCGT_pred", "DCGT_lb", "DCGT_ub",   
+                                             "DC_pred", "DC_lb","DC_ub" ,"ew_pred","True")) |>
+        mutate(DCGT_CoverageRate = ifelse(True > DCGT_lb & True < DCGT_ub, TRUE, FALSE),
+               DC_CoverageRate = ifelse(True > DC_lb & True < DC_ub, TRUE, FALSE),
+               GT_CoverageRate = ifelse(True > lwr & True < upr, TRUE, FALSE),
+               ID_CoverageRate = ifelse(True > cases_est_id_min & True < cases_est_id_max, TRUE, FALSE),
+               DCGT_CI_WD = DCGT_ub -DCGT_lb,
+               DC_CI_WD = DC_ub - DC_lb,
+               GT_CI_WD = upr -lwr,
+               ID_CI_WD = cases_est_id_max - cases_est_id_min)
       # Naive
       ew_start_naive_start <- min(merged_data$ew_start) %m-% weeks(1)
       ew_start_naive_end <- max(merged_data$ew_start) %m-% weeks(1)
       Naive <- data |> filter(ew_start <= ew_start_naive_end & ew_start >= ew_start_naive_start) %>%
         select(sum_of_cases)
       merged_data$Naive <- Naive$sum_of_cases
-
+      
+      
       final_df <- rbind(final_df, merged_data)
     }
   }
@@ -151,11 +161,35 @@ generate_Prediction <- function(ufs, K = 4, compare_length = 1, save = T,  gamma
   final_df
 }
 
+
+
 compare_Measurement <- function(data,
                                 relative_to_naive = TRUE){
   # Input data with first column to be the real value
   # and other columns are predicted values
   # And model names
+  
+  # Coverage rate
+  CR <- data[, c(7 : 10)]
+  
+  CR_out <- c(sum(CR$DCGT_CoverageRate)/length(CR$DCGT_CoverageRate),
+              sum(CR$GT_CoverageRate)/length(CR$GT_CoverageRate),
+              sum(CR$DC_CoverageRate)/length(CR$DC_CoverageRate),
+              sum(na.omit(CR$ID_CoverageRate))/length(CR$ID_CoverageRate),
+              NA)
+  # CI width
+  CI <- data[, c(11 : 15)]
+  CI_out <- CI %>% group_by(uf) %>% mutate(DCGT_CI_WD = sum(DCGT_CI_WD)/length(DCGT_CI_WD),
+                                           DC_CI_WD = sum(DC_CI_WD)/length(DC_CI_WD),
+                                           GT_CI_WD = sum(GT_CI_WD)/length(GT_CI_WD),
+                                           ID_CI_WD = sum(na.omit(ID_CI_WD))/length(na.omit(ID_CI_WD)),)%>%
+    distinct(uf, .keep_all = TRUE) %>% ungroup %>%
+    dplyr::select(-uf) %>% as.numeric()
+  CI_out <- c(round(CI_out,2), NA)
+  
+  
+  
+  data <- data[, c(1:6)]
   
   # Save the col names to use it in the end
   Models <- colnames(data)[-1]
@@ -172,7 +206,7 @@ compare_Measurement <- function(data,
       Measurements <- rbind(Measurements, get_Metrics(data[, 1], data[, j+1], F))
     }
   }
-
+  
   Measurements <- cbind(Models, Measurements)
   
   # If take values that are relative to naive
@@ -192,6 +226,10 @@ compare_Measurement <- function(data,
   
   
   Measurements[,-1] <- round(Measurements[,-1],3)
+  
+  # Combine the CR
+  Measurements$CR <- CR_out
+  Measurements$WD <- CI_out
   
   return(Measurements)
 }
@@ -263,6 +301,7 @@ get_Boxplot <- function(data,
   if (order_by == "Median") {
     median_order <- df_long %>%
       group_by(Prediction) %>%
+      # summarize(median_val = median(abs(Difference))) %>%
       summarize(median_val = median(Difference)) %>%
       arrange(median_val) %>%
       pull(Prediction)
@@ -319,8 +358,6 @@ get_Boxplot <- function(data,
 
 df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
 
-generate_Prediction("AC", K = 4, compare_length = 20, save = F)
-
 brazil_states_full <- c(
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", 
   "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul", 
@@ -335,8 +372,10 @@ temp <- df |>
   filter(ew == max(ew)) |>
   ungroup()
 ########### get metrics table ###########
-model_preds_metrics <- temp %>% select(True, ARGO_pred, SAR_pred, prediction, cases_est_id, Naive) %>%
-  rename(Real_value = True, SARIMAX = ARGO_pred, SAR = SAR_pred, GT = prediction, InfoDengue = cases_est_id) %>%
+model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive,
+                                       DCGT_CoverageRate, DC_CoverageRate, GT_CoverageRate, ID_CoverageRate,
+                                       DCGT_CI_WD, DC_CI_WD, GT_CI_WD, ID_CI_WD,uf) %>%
+  rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
 
 real_time_list <- list()
@@ -349,7 +388,34 @@ for (state in brazil_ufs) {
 }
 
 ########### get latex table for metrics ###########
-metrics <- c("RMSE", "MAE", "RMSPE", "MAPE")
+
+highlight_values <- function(df, type = c("min", "max"), n = 1) {
+  type <- match.arg(type)
+  if (!(n %in% c(1, 2))) stop("n must be either 1 or 2")
+  
+  apply(df, 1, function(x) {
+    if (type == "min") {
+      values <- sort(x, na.last = NA)
+    } else if (type == "max") {
+      values <- sort(x, decreasing = TRUE, na.last = NA)
+    }
+    
+    target_vals <- values[1:n]
+    
+    sapply(x, function(y) {
+      if (!is.na(y) && y == target_vals[1]) {
+        paste0("\\textcolor{red}{", y, "}")
+      } else if (n == 2 && !is.na(y) && y == target_vals[2]) {
+        paste0("\\textcolor{blue}{", y, "}")
+      } else {
+        y
+      }
+    })
+  }) %>% t() %>% as.data.frame()
+}
+
+
+metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
 models <- unique(real_time_list[[1]]$Models)
 
 # new dataframe to store
@@ -360,6 +426,8 @@ rownames(rmse_df) <- brazil_states_full
 mae_df <- rmse_df
 rmspe_df <- rmse_df
 mape_df <- rmse_df
+cr_df <- rmse_df
+wd_df <- rmse_df
 
 # fill
 for (state in brazil_states_full) {
@@ -368,36 +436,27 @@ for (state in brazil_states_full) {
   mae_df[state, ] <- data$MAE
   rmspe_df[state, ] <- data$RMSPE
   mape_df[state, ] <- data$MAPE
+  cr_df[state, ] <- data$CR
+  wd_df[state, ] <- data$WD
 }
 
-highlight_min <- function(df) {
-  apply(df, 1, function(x) {
-    min_val <- min(x, na.rm = TRUE)
-    second_min_val <- min(x[x > min_val], na.rm = TRUE)
-    sapply(x, function(y) {
-      if (!is.na(y) && y == min_val) {
-        paste0("\\textcolor{red}{", y, "}")
-      } else if (!is.na(y) && y == second_min_val) {
-        paste0("\\textcolor{blue}{", y, "}")
-      } else {
-        y
-      }
-    })
-  }) %>% t() %>% as.data.frame()
-}
-
-metrics_list <- list(rmse = rmse_df, mae = mae_df, rmspe = rmspe_df, mape = mape_df)
+metrics_list <- list(rmse = rmse_df, mae = mae_df, rmspe = rmspe_df, 
+                     mape = mape_df, cr = cr_df[, -5], wd = wd_df[, -5])
 for (name in names(metrics_list)) {
   df <- metrics_list[[name]]
-  df_highlighted <- highlight_min(df)
+  if(name == "cr"){
+    df_highlighted <- highlight_values(df, type = "max", n = 1)
+  }else{
+    df_highlighted <- highlight_values(df, type = "min", n = 2)
+  }
   latex_table <- xtable(df_highlighted, caption = paste(toupper(name), "Comparison"))
   print(latex_table, sanitize.text.function = identity, 
         comment = FALSE, include.rownames = TRUE)
 }
 
 ###################### boxplot ######################
-model_preds_p <- temp %>% select(True, ARGO_pred, SAR_pred, prediction, cases_est_id, Naive, uf) %>%
-  rename(Real_value = True, SARIMAX = ARGO_pred, SAR = SAR_pred, GT = prediction, InfoDengue = cases_est_id) %>%
+model_preds_p <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive, uf) %>%
+  rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
 
 real_time_plot_1 <- list(); real_time_plot_2 <- list()
@@ -409,10 +468,12 @@ for (state in brazil_ufs) {
   if(count_p <= 13){
     real_time_plot_1[[state]] <- get_Boxplot(model_preds_p[which(model_preds_p$uf == state),-7], 
                                              x_lab = NULL, y_lab = expression(hat(c)[t] - c[t]),
+                                             order_by = "Median",
                                              plot_title = brazil_states_full[count_p], no_legend = T)
   }else{
     real_time_plot_2[[state]] <- get_Boxplot(model_preds_p[which(model_preds_p$uf == state),-7], 
                                              x_lab = NULL, y_lab = expression(hat(c)[t] - c[t]),
+                                             order_by = "Median",
                                              plot_title = brazil_states_full[count_p], no_legend = T)
   }
 }
@@ -422,11 +483,70 @@ library(gridExtra)
 grid.arrange(grobs = real_time_plot_1, ncol = 4)
 grid.arrange(grobs = real_time_plot_2, ncol = 4)
 
+###################### BR cases MAP ######################
+dengue_map <- tibble()
+for (state in brazil_ufs) {
+  temp_states <- process_data(state, as.Date("2024-05-26"), ew = 202421)[[1]] %>% 
+    filter(ew >= 202401) %>% select(sum_of_cases, uf)
+  temp_states_out <- tibble(cases = sum(temp_states$sum_of_cases), uf = temp_states$uf[1])
+  dengue_map <- rbind(dengue_map, temp_states_out)
+}
+dengue_map$cases_log10 <- log10(dengue_map$cases)
+
+library(rnaturalearth)
+library(rnaturalearthdata)
+
+brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
+
+brazil_states <- brazil_states %>%
+  left_join(dengue_map, by = c("postal" = "uf"))
+
+# log10 trans
+brazil_states$log_cases <- log10(brazil_states$cases + 1)  # avoid 0
+
+# color mapping
+pal <- colorNumeric(
+  palette = colorRampPalette(c("white", "orange", "red"))(100),
+  domain = brazil_states$log_cases,
+  na.color = "transparent"
+)
+
+#  leaflet map
+leaflet(data = brazil_states) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(
+    fillColor = ~pal(log_cases),
+    weight = 2,
+    opacity = 1,
+    color = "black",  # set the boundary
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlightOptions = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE
+    ),
+    label = ~paste(name, "<br>", "Cases:", cases),
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto"
+    )
+  ) %>%
+  addLegend(
+    pal = pal,
+    values = ~log_cases,
+    opacity = 0.7,
+    title = "Log(Number of Cases)",
+    position = "bottomright"
+  )
 
 # temp$err_pred <- abs(temp$prediction - temp$True)
 # temp$err_infodengue <- abs(temp$cases_est_id - temp$True)
 # temp$err_argo <- abs(temp$ARGO_pred - temp$True)
-# temp$err_sar <- abs(temp$SAR_pred - temp$True)
+# temp$err_sar <- abs(temp$SAR_pred - temp$True) 
 # 
 # temp$ape_pred <- temp$err_pred/temp$True
 # temp$ape_infodengue <- temp$err_infodengue/temp$True
