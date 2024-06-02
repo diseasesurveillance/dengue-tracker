@@ -302,7 +302,7 @@ get_Boxplot <- function(data,
     median_order <- df_long %>%
       group_by(Prediction) %>%
       # summarize(median_val = median(abs(Difference))) %>%
-      summarize(median_val = median(Difference)) %>%
+      summarize(median_val = median(abs(Difference))) %>%
       arrange(median_val) %>%
       pull(Prediction)
     
@@ -501,6 +501,10 @@ brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
 brazil_states <- brazil_states %>%
   left_join(dengue_map, by = c("postal" = "uf"))
 
+# get the central points 
+brazil_states <- st_make_valid(brazil_states)
+
+centroids <- st_centroid(brazil_states)
 # log10 trans
 brazil_states$log_cases <- log10(brazil_states$cases + 1)  # avoid 0
 
@@ -518,7 +522,7 @@ leaflet(data = brazil_states) %>%
     fillColor = ~pal(log_cases),
     weight = 2,
     opacity = 1,
-    color = "black",  # set the boundary
+    color = "black",  
     dashArray = "3",
     fillOpacity = 0.7,
     highlightOptions = highlightOptions(
@@ -533,6 +537,23 @@ leaflet(data = brazil_states) %>%
       style = list("font-weight" = "normal", padding = "3px 8px"),
       textsize = "15px",
       direction = "auto"
+    )
+  ) %>%
+  addLabelOnlyMarkers(
+    data = centroids,
+    lng = ~st_coordinates(centroids)[,1],
+    lat = ~st_coordinates(centroids)[,2],
+    label = ~postal,
+    labelOptions = labelOptions(
+      noHide = TRUE,
+      direction = 'center',
+      textOnly = TRUE,
+      style = list(
+        'color' = 'black',
+        'font-family' = 'Arial',
+        'font-weight' = 'bold',
+        'font-size' = '12px'
+      )
     )
   ) %>%
   addLegend(
