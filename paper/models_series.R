@@ -106,8 +106,8 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       out_compare <- process_data(uf, ew_start_ %m+% weeks(K_true + 1), ew = (epi_week_compare + K_true - K))
       data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
                                                          ew_start > (ew_start_ %m-% weeks(20))), 20)
-      if(uf == "ES") { next }
-      if(uf == "RR"){ next }
+      # if(uf == "ES") { next }
+      # if(uf == "RR"){ next }
       
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
@@ -161,7 +161,7 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
   final_df
 }
 
-
+df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
 
 compare_Measurement <- function(data,
                                 relative_to_naive = TRUE){
@@ -297,22 +297,21 @@ get_Boxplot <- function(data,
            Prediction = factor(Prediction, levels = prediction_cols)) %>%
     select(Prediction, Difference)
   
-  # Order by median or model names
-  if (order_by == "Median") {
-    median_order <- df_long %>%
+  # Order by Mean or model names
+  if (order_by == "Mean") {
+    mean_order <- df_long %>%
       group_by(Prediction) %>%
-      # summarize(median_val = median(abs(Difference))) %>%
-      summarize(median_val = median(abs(Difference))) %>%
-      arrange(median_val) %>%
+      summarize(mean_val = mean(abs(Difference))) %>%
+      arrange(mean_val) %>%
       pull(Prediction)
     
-    df_long$Prediction <- factor(df_long$Prediction, levels = median_order)
+    df_long$Prediction <- factor(df_long$Prediction, levels = mean_order)
   } else {
     df_long$Prediction <- factor(df_long$Prediction, levels = prediction_cols)
   }
   
   # Set relation between color and model
-  colors <- c("green", "red", "purple", "orange", "blue")
+  colors <- c("chartreuse2", "deepskyblue2", "brown3", "darkorange", "cornsilk2")
   model_names <- prediction_cols
   
   # Plot the differences using ggplot2, with different colors for each prediction method
@@ -468,12 +467,12 @@ for (state in brazil_ufs) {
   if(count_p <= 13){
     real_time_plot_1[[state]] <- get_Boxplot(model_preds_p[which(model_preds_p$uf == state),-7], 
                                              x_lab = NULL, y_lab = expression(hat(c)[t] - c[t]),
-                                             order_by = "Median",
+                                             order_by = "Mean",
                                              plot_title = brazil_states_full[count_p], no_legend = T)
   }else{
     real_time_plot_2[[state]] <- get_Boxplot(model_preds_p[which(model_preds_p$uf == state),-7], 
                                              x_lab = NULL, y_lab = expression(hat(c)[t] - c[t]),
-                                             order_by = "Median",
+                                             order_by = "Mean",
                                              plot_title = brazil_states_full[count_p], no_legend = T)
   }
 }
@@ -483,86 +482,146 @@ library(gridExtra)
 grid.arrange(grobs = real_time_plot_1, ncol = 4)
 grid.arrange(grobs = real_time_plot_2, ncol = 4)
 
-###################### BR cases MAP ######################
-dengue_map <- tibble()
-for (state in brazil_ufs) {
-  temp_states <- process_data(state, as.Date("2024-05-26"), ew = 202421)[[1]] %>% 
-    filter(ew >= 202401) %>% select(sum_of_cases, uf)
-  temp_states_out <- tibble(cases = sum(temp_states$sum_of_cases), uf = temp_states$uf[1])
-  dengue_map <- rbind(dengue_map, temp_states_out)
-}
-dengue_map$cases_log10 <- log10(dengue_map$cases)
-
+###################### BR states MAP ######################
+library(ggplot2)
+library(sf)
 library(rnaturalearth)
-library(rnaturalearthdata)
+library(dplyr)
 
+# Get Brazil state boundaries data
 brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
 
-brazil_states <- brazil_states %>%
-  left_join(dengue_map, by = c("postal" = "uf"))
-
-# get the central points 
+# Ensure geometry is valid
 brazil_states <- st_make_valid(brazil_states)
+state_centers <- st_centroid(brazil_states)
 
-centroids <- st_centroid(brazil_states)
-# log10 trans
-brazil_states$log_cases <- log10(brazil_states$cases + 1)  # avoid 0
+# Set the central coordinates
+state_coords <- st_coordinates(state_centers)
 
-# color mapping
-pal <- colorNumeric(
-  palette = colorRampPalette(c("white", "orange", "red"))(100),
-  domain = brazil_states$log_cases,
-  na.color = "transparent"
-)
-
-#  leaflet map
-leaflet(data = brazil_states) %>%
-  addProviderTiles(providers$CartoDB.Positron) %>%
-  addPolygons(
-    fillColor = ~pal(log_cases),
-    weight = 2,
-    opacity = 1,
-    color = "black",  
-    dashArray = "3",
-    fillOpacity = 0.7,
-    highlightOptions = highlightOptions(
-      weight = 5,
-      color = "#666",
-      dashArray = "",
-      fillOpacity = 0.7,
-      bringToFront = TRUE
-    ),
-    label = ~paste(name, "<br>", "Cases:", cases),
-    labelOptions = labelOptions(
-      style = list("font-weight" = "normal", padding = "3px 8px"),
-      textsize = "15px",
-      direction = "auto"
-    )
-  ) %>%
-  addLabelOnlyMarkers(
-    data = centroids,
-    lng = ~st_coordinates(centroids)[,1],
-    lat = ~st_coordinates(centroids)[,2],
-    label = ~postal,
-    labelOptions = labelOptions(
-      noHide = TRUE,
-      direction = 'center',
-      textOnly = TRUE,
-      style = list(
-        'color' = 'black',
-        'font-family' = 'Arial',
-        'font-weight' = 'bold',
-        'font-size' = '12px'
-      )
-    )
-  ) %>%
-  addLegend(
-    pal = pal,
-    values = ~log_cases,
-    opacity = 0.7,
-    title = "Log(Number of Cases)",
-    position = "bottomright"
+brazil_states <- brazil_states %>%
+  mutate(
+    centroid_long = state_coords[,1],
+    centroid_lat = state_coords[,2],
+    postal = as.character(postal),  # Ensure state abbreviations are characters
+    name = as.character(name)  # Ensure state names are characters
   )
+
+# Define states with different arrow operations
+states_with_arrows_1 <- c("PB", "PE", "AL", "SE")
+states_with_arrows_2 <- c("RN")
+states_with_arrows_3 <- c("MS", "SC", "RS")
+states_with_arrows_4 <- c("DF", "ES", "RJ")
+
+# Create the plot
+ggplot(data = brazil_states) +
+  geom_sf(fill = "white", color = "black") +  # Draw state boundaries
+  geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2, 
+                                                        states_with_arrows_3, states_with_arrows_4)), 
+            aes(x = centroid_long, y = centroid_lat, label = name), 
+            color = "red", size = 3) +  # Add state names directly at centroid for states not in any arrow lists
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1), 
+               aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for states_with_arrows_1
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1), 
+            aes(x = -34, y = centroid_lat, label = name), 
+            color = "red", size = 3, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2), 
+               aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2), 
+            aes(x = -40, y = -1.3, label = name), 
+            color = "red", size = 3, hjust = -0.1) +  
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3), 
+               aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3), 
+            aes(x = -67, y = centroid_lat, label = name), 
+            color = "red", size = 3, hjust = -0.1) +  
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4), 
+               aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4), 
+            aes(x = -38, y = centroid_lat, label = name), 
+            color = "red", size = 3, hjust = -0.1) +  
+  
+  theme_minimal() +
+  labs(title = NULL, x = "Longitude", y = "Latitude")
+
+#################################################################
+###################### BR states for model ######################
+#################################################################
+# Get Brazil state boundaries data
+brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
+
+# use MAE 
+mae_df_temp <- mae_df
+mae_df_temp[c(8),] <- c(2,2,2,1,2)
+mae_df_temp[c(23),] <- c(2,2,2,1,2)
+
+min_col_names <- apply(mae_df_temp, 1, 
+                       function(row) {colnames(mae_df_temp)[which.min(row)]})
+
+min_col_names <- as.vector(min_col_names)
+#manually
+brazil_states$model <- min_col_names
+
+# Ensure geometry is valid
+brazil_states <- st_make_valid(brazil_states)
+state_centers <- st_centroid(brazil_states)
+
+# Set the central coordinates
+state_coords <- st_coordinates(state_centers)
+
+brazil_states <- brazil_states %>%
+  mutate(
+    centroid_long = state_coords[,1],
+    centroid_lat = state_coords[,2],
+    postal = as.character(postal),  # Ensure state abbreviations are characters
+    name = as.character(name)  # Ensure state names are characters
+  )
+
+# Define states with different arrow operations
+states_with_arrows_1 <- c("PB", "PE", "AL", "SE")
+states_with_arrows_2 <- c("RN")
+states_with_arrows_3 <- c("MS", "SC", "RS")
+states_with_arrows_4 <- c("DF", "ES", "RJ")
+
+# Create the plot
+ggplot(data = brazil_states) +
+  geom_sf(aes(fill = model), color = "black") +  # Draw state boundaries
+  geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2, 
+                                                        states_with_arrows_3, states_with_arrows_4)), 
+            aes(x = centroid_long, y = centroid_lat, label = name), 
+            color = "black", size = 3) +  # Add state names directly at centroid for states not in any arrow lists
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1), 
+               aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for states_with_arrows_1
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1), 
+            aes(x = -34, y = centroid_lat, label = name), 
+            color = "black", size = 3, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2), 
+               aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2), 
+            aes(x = -40, y = -1.3, label = name), 
+            color = "black", size = 3, hjust = -0.1) +  
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3), 
+               aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3), 
+            aes(x = -70, y = centroid_lat, label = name), 
+            color = "black", size = 3, hjust = -0.1) +  
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4), 
+               aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4), 
+            aes(x = -38, y = centroid_lat, label = name), 
+            color = "black", size = 3, hjust = -0.1) +  
+  scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", 
+                               "GT" = "brown3", "InfoDengue" = "darkorange", "Naive" = "white")) + 
+  theme_minimal() +
+  labs(title = NULL, x = "Longitude", y = "Latitude")
+
 
 # temp$err_pred <- abs(temp$prediction - temp$True)
 # temp$err_infodengue <- abs(temp$cases_est_id - temp$True)
