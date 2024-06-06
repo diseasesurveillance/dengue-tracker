@@ -28,6 +28,8 @@ run_model_DCGT <- function(merged_data, topics,
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
   }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
   start <- end %m-% years(3)
+  
+  print(start)
   # log-trans
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics) %>%
     mutate(sum_of_cases = log(sum_of_cases + offset_lag),
@@ -60,7 +62,8 @@ run_model_DC <- function(merged_data, topics,
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
   }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
   start <- end %m-% years(3)
-
+  
+  print(start)
   # log-trans
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases) %>%
     mutate(sum_of_cases = log(sum_of_cases + offset_lag))
@@ -87,7 +90,7 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
 
   final_df <- data.frame()
   ## Weeks to be considered
-  epi_weeks <- seq(202410, 202421, by = 1)
+  epi_weeks <- seq(202410, 202415, by = 1)
 
   for(epi_week in epi_weeks){
     # K_true should be larger than K
@@ -100,14 +103,14 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
     epi_week_compare <- epi_week + K
     print(epi_week)
     for (uf in ufs) {
-      
+      print(uf)
       # out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
       # Get K_ture is to control the delay of weeks for the "true data". The default value is 4.
       out_compare <- process_data(uf, ew_start_ %m+% weeks(K_true + 1), ew = (epi_week_compare + K_true - K))
       data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
                                                          ew_start > (ew_start_ %m-% weeks(20))), 20)
-      # if(uf == "ES") { next }
-      # if(uf == "RR"){ next }
+      if(uf == "ES") { next }
+      if(uf == "RR"){ next }
       
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
@@ -435,7 +438,7 @@ for (state in brazil_states_full) {
   mae_df[state, ] <- data$MAE
   rmspe_df[state, ] <- data$RMSPE
   mape_df[state, ] <- data$MAPE
-  cr_df[state, ] <- data$CR
+  cr_df[state, ] <- round(data$CR,3)
   wd_df[state, ] <- data$WD
 }
 
@@ -551,31 +554,58 @@ ggplot(data = brazil_states) +
 ###################### BR states for model ######################
 #################################################################
 # Get Brazil state boundaries data
+# Get Brazil state boundaries data
 brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
 
-# use MAE 
-mae_df_temp <- mae_df
-mae_df_temp[c(8),] <- c(2,2,2,1,2)
-mae_df_temp[c(23),] <- c(2,2,2,1,2)
+# Use RMSE data frame
+# compare_data <- rmse_df
 
-min_col_names <- apply(mae_df_temp, 1, 
-                       function(row) {colnames(mae_df_temp)[which.min(row)]})
+# Uncomment the following lines to use other data frames
+# Use MAE data frame
+compare_data <- mae_df
 
-min_col_names <- as.vector(min_col_names)
-#manually
-brazil_states$model <- min_col_names
+# Use RMSPE data frame
+# compare_data <- rmspe_df
+
+# Use MAPE data frame
+# compare_data <- mape_df
+
+# Set specific rows to avoid the output being a list
+compare_data[c(8),] <- c(2, 2, 2, 1, 2)
+compare_data[c(23),] <- c(2, 2, 2, 1, 2)
+
+# Find the column names with the minimum value for each row
+best_models <- apply(compare_data, 1, function(row) {
+  colnames(compare_data)[which.min(row)]
+})
+best_models[8] <- "Non-comparable"
+best_models[23] <- "Non-comparable"
+
+# Create a data frame with state names and corresponding models
+states_models <- data.frame(
+  name = rownames(compare_data),
+  best_models = factor(best_models),
+  stringsAsFactors = FALSE
+)
+
+# Rearrange the order
+states_models <- states_models[match(brazil_states$name, states_models$name), ]
+rownames(states_models) <- NULL
+
+# Assign models to Brazil states
+brazil_states$model <- states_models$best_models
 
 # Ensure geometry is valid
 brazil_states <- st_make_valid(brazil_states)
 state_centers <- st_centroid(brazil_states)
 
-# Set the central coordinates
+# Set central coordinates
 state_coords <- st_coordinates(state_centers)
 
 brazil_states <- brazil_states %>%
   mutate(
-    centroid_long = state_coords[,1],
-    centroid_lat = state_coords[,2],
+    centroid_long = state_coords[, 1],
+    centroid_lat = state_coords[, 2],
     postal = as.character(postal),  # Ensure state abbreviations are characters
     name = as.character(name)  # Ensure state names are characters
   )
@@ -589,36 +619,38 @@ states_with_arrows_4 <- c("DF", "ES", "RJ")
 # Create the plot
 ggplot(data = brazil_states) +
   geom_sf(aes(fill = model), color = "black") +  # Draw state boundaries
-  geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2, 
-                                                        states_with_arrows_3, states_with_arrows_4)), 
-            aes(x = centroid_long, y = centroid_lat, label = name), 
-            color = "black", size = 3) +  # Add state names directly at centroid for states not in any arrow lists
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1), 
-               aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for states_with_arrows_1
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1), 
-            aes(x = -34, y = centroid_lat, label = name), 
-            color = "black", size = 3, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2), 
-               aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat), 
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2), 
-            aes(x = -40, y = -1.3, label = name), 
-            color = "black", size = 3, hjust = -0.1) +  
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3), 
-               aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3), 
-            aes(x = -70, y = centroid_lat, label = name), 
-            color = "black", size = 3, hjust = -0.1) +  
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4), 
-               aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4), 
-            aes(x = -38, y = centroid_lat, label = name), 
-            color = "black", size = 3, hjust = -0.1) +  
-  scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", 
-                               "GT" = "brown3", "InfoDengue" = "darkorange", "Naive" = "white")) + 
+  geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2,
+                                                        states_with_arrows_3, states_with_arrows_4)),
+            aes(x = centroid_long, y = centroid_lat, label = name),
+            color = "black", size = 3) +  # Add state names at centroids
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1),
+               aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for specific states
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1),
+            aes(x = -34, y = centroid_lat, label = name),
+            color = "black", size = 3, hjust = -0.1) +  # Add state names near arrows
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2),
+               aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat),
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2),
+            aes(x = -40, y = -1.3, label = name),
+            color = "black", size = 3, hjust = -0.1) +
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3),
+               aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3),
+            aes(x = -70, y = centroid_lat, label = name),
+            color = "black", size = 3, hjust = -0.1) +
+  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4),
+               aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
+  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4),
+            aes(x = -38, y = centroid_lat, label = name),
+            color = "black", size = 3, hjust = -0.1) +
+  scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
+                               "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
+                    name = "Model", 
+                    labels = c("DCGT" = "DC & GT")) +
   theme_minimal() +
   labs(title = NULL, x = "Longitude", y = "Latitude")
 
