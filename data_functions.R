@@ -283,6 +283,11 @@ generate_data <- function(ufs,
     K <- 4
     if(uf == "ES") K <- 15
     
+    # Filter the data and use last three years to train
+    date_fil <- last_ew_start %m-% years(3)
+    date_fil <- date_fil %m-% weeks(K+1)
+    data <- data %>% filter(ew_start >= date_fil)
+    
     merged_data <- run_model(data, topics, gamma, K = K)
     if (is.null(merged_data[nrow(merged_data), "sum_of_cases"])) {
       merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1

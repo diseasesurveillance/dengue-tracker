@@ -28,8 +28,6 @@ run_model_DCGT <- function(merged_data, topics,
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
   }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
   start <- end %m-% years(3)
-  
-  print(start)
   # log-trans
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics) %>%
     mutate(sum_of_cases = log(sum_of_cases + offset_lag),
@@ -63,10 +61,13 @@ run_model_DC <- function(merged_data, topics,
   }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
   start <- end %m-% years(3)
   
-  print(start)
+  # Convert to the start of ew weeks
+  end <- (end - wday(end) + 1)
+  
   # log-trans
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases) %>%
     mutate(sum_of_cases = log(sum_of_cases + offset_lag))
+  
   # get train and pred data
   merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
   # fit the model
@@ -90,11 +91,11 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
 
   final_df <- data.frame()
   ## Weeks to be considered
-  epi_weeks <- seq(202410, 202415, by = 1)
+  epi_weeks <- seq(202410, 202422, by = 1)
 
   for(epi_week in epi_weeks){
     # K_true should be larger than K
-    if(epi_week > last(epi_weeks)- K_true) { break }
+    if(epi_week > last(epi_weeks) - K_true) { break }
     ## Dates for training model
     ew_start_ <- get_date(week = as.numeric(substr(epi_week, 5, 6)), year = as.numeric(substr(epi_week, 1, 4)))
 
@@ -103,7 +104,6 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
     epi_week_compare <- epi_week + K
     print(epi_week)
     for (uf in ufs) {
-      print(uf)
       # out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
       # Get K_ture is to control the delay of weeks for the "true data". The default value is 4.
       out_compare <- process_data(uf, ew_start_ %m+% weeks(K_true + 1), ew = (epi_week_compare + K_true - K))
@@ -163,8 +163,6 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
   }
   final_df
 }
-
-df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
 
 compare_Measurement <- function(data,
                                 relative_to_naive = TRUE){
