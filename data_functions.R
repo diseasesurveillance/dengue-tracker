@@ -270,6 +270,7 @@ run_model_variables <- function(merged_data, topics, gamma=0.95, K = 5) {
 generate_data <- function(ufs,
                           last_ew_start = Sys.Date() - wday(Sys.Date()) + 1,
                           ew = NULL,
+                          index_of_queries = c(1,2),
                           gamma = 0.95,
                           save = T) {
 
@@ -278,7 +279,7 @@ generate_data <- function(ufs,
   for (uf in ufs) {
     out <- process_data(uf, last_ew_start, ew = ew)
     data <- out[[1]]
-    topics <- out[[2]]
+    topics <- out[[2]][index_of_queries]
     
     K <- 4
     if(uf == "ES") K <- 15
@@ -308,11 +309,12 @@ generate_data <- function(ufs,
 }
 
 
-generate_data_all_country <- function(gamma = 0.95, save = T) {
+generate_data_all_country <- function(index_of_queries = c(1,2), 
+                                      gamma = 0.95, save = T) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
   out <- process_data("BR", last_ew_start)
   final_data <- out[[1]]
-  topics <- out[[2]]
+  topics <- out[[2]][index_of_queries]
   final_data <- final_data |>
     select(ew_start, ew, sum_of_cases, cases_est_id, cases_est_id_min,
            cases_est_id_max, dengue, sintomas.dengue, uf) |>

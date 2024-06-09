@@ -114,9 +114,15 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
+      data2 <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(2),
+                             ew = epi_week, save=F) |> 
+        filter(ew_start <= ew_start_)
       if (uf == "BR") {
         data <- data |> unique()
+        data2 <- data2 |> unique()
       }
+      data <- data %>% mutate(lwr2 = data2$lwr, upr2 = data2$upr, GT2 = data2$prediction,
+                              IDGT = (prediction + cases_est_id) / 2, IDGT2 = (GT2 + cases_est_id) / 2)
       #data <- tail(data, 20)
       data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
       data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
@@ -136,16 +142,18 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       merged_data$uf <- uf
       
       merged_data <- merged_data |> select(c("ew_start", "ew", "sum_of_cases", "cases_est_id", "cases_est_id_min",
-                                             "cases_est_id_max", "dengue", "sintomas.dengue", "uf", "lwr",       
-                                             "upr", "prediction",  "DCGT_pred", "DCGT_lb", "DCGT_ub",   
+                                             "cases_est_id_max", "dengue", "sintomas.dengue", "uf", 
+                                             "lwr", "upr", "prediction", "lwr2", "upr2", "GT2", "IDGT", "IDGT2",  
+                                             "DCGT_pred", "DCGT_lb", "DCGT_ub",   
                                              "DC_pred", "DC_lb","DC_ub" ,"ew_pred","True")) |>
         mutate(DCGT_CoverageRate = ifelse(True > DCGT_lb & True < DCGT_ub, TRUE, FALSE),
                DC_CoverageRate = ifelse(True > DC_lb & True < DC_ub, TRUE, FALSE),
                GT_CoverageRate = ifelse(True > lwr & True < upr, TRUE, FALSE),
+               #Coverage rate
                ID_CoverageRate = ifelse(True > cases_est_id_min & True < cases_est_id_max, TRUE, FALSE),
-               DCGT_CI_WD = DCGT_ub -DCGT_lb,
+               DCGT_CI_WD = DCGT_ub - DCGT_lb,
                DC_CI_WD = DC_ub - DC_lb,
-               GT_CI_WD = upr -lwr,
+               GT_CI_WD = upr - lwr,
                ID_CI_WD = cases_est_id_max - cases_est_id_min)
       # Naive
       ew_start_naive_start <- min(merged_data$ew_start) %m-% weeks(1)
@@ -360,6 +368,7 @@ get_Boxplot <- function(data,
 
 
 df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
+generate_Prediction("BR", K = 4, compare_length = 20, save = F)
 
 brazil_states_full <- c(
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", 
@@ -417,6 +426,48 @@ highlight_values <- function(df, type = c("min", "max"), n = 1) {
   }) %>% t() %>% as.data.frame()
 }
 
+create_latex_tables <- function(real_time_list, brazil_states_full) {
+  metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
+  models <- unique(real_time_list[[1]]$Models)
+  
+  # Initialize data frames for each metric
+  metrics_df <- list()
+  for (metric in metrics) {
+    metrics_df[[metric]] <- data.frame(matrix(ncol = length(models), nrow = length(brazil_states_full)))
+    colnames(metrics_df[[metric]]) <- models
+    rownames(metrics_df[[metric]]) <- brazil_states_full
+  }
+  
+  # Fill data frames with the appropriate metrics
+  for (state in brazil_states_full) {
+    data <- real_time_list[[state]]
+    for (metric in metrics) {
+      metrics_df[[metric]][state, ] <- data[[metric]]
+    }
+  }
+  
+  # Round CR and WD data
+  metrics_df$CR <- round(metrics_df$CR, 3)
+  metrics_df$WD <- round(metrics_df$WD, 3)
+  
+  # Remove specific columns from CR and WD (All NAs)
+  metrics_df$CR <- metrics_df$CR[, -c(5:7)]
+  metrics_df$WD <- metrics_df$WD[, -c(5:7)]
+  
+  # Generate LaTeX tables
+  latex_tables <- list()
+  for (name in names(metrics_df)) {
+    df <- metrics_df[[name]]
+    if (name == "CR") {
+      df_highlighted <- highlight_values(df, type = "max", n = 1)
+    } else {
+      df_highlighted <- highlight_values(df, type = "min", n = 2)
+    }
+    latex_table <- xtable(df_highlighted, caption = paste(toupper(name), "Comparison"))
+    latex_tables[[name]] <- print(latex_table, sanitize.text.function = identity, 
+                                  comment = FALSE, include.rownames = TRUE)
+  }
+}
 
 metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
 models <- unique(real_time_list[[1]]$Models)
