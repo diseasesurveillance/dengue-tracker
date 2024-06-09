@@ -6,7 +6,7 @@ library(forecast)
 library(tidyverse)
 library(xtable)
 
-setwd('/Users/xiaoy0a/Desktop/GitHub/Dengue/dengue-tracker/')
+#setwd('/Users/xiaoy0a/Desktop/GitHub/Dengue/dengue-tracker/')
 
 source("data_functions.R")
 aweek::set_week_start("Sunday")
@@ -114,6 +114,9 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
+      if (uf == "BR") {
+        data <- data |> unique()
+      }
       #data <- tail(data, 20)
       data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
       data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
@@ -705,10 +708,10 @@ ggplot(data = brazil_states) +
 # 
 # ### PLOTS
 # 
-# df <- df |>
-#   filter(ew_pred == max(df$ew_pred))
-# 
-# plot_geofacet_series(df)
-# 
+df <- df |>
+  filter(ew_pred == max(df$ew_pred))
+
+plot_geofacet_series(df)
+
 # 
 # plot_trends_data(df, "RJ")

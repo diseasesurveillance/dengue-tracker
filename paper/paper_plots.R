@@ -6,23 +6,31 @@ plot_geofacet_series <- function(merged_data, K = 5) {
   date_no_delay <- data[nrow(data) - K, ]$ew_start
   
   ggplot(data) +
-    geom_line(
+    geom_line(data=data |> filter(ew_start>=date_no_delay),
       aes(
         x = ew_start, y = sum_of_cases, group = 1,
         colour = "Suspected Cases \n (subject to delays)"
       ),
       size = 1
     ) +
-    geom_line(data = data |> filter(ew_start <= date_no_delay), aes(
-      x = ew_start, y = prediction,
-      group = 1, color = "Fitted Model"
-    ), linetype = 1, size = .5) +
+    geom_line(data=data |> filter(ew_start>=date_no_delay),
+      aes(
+        x = ew_start, y = True, group = 1,
+        colour = "Baseline"
+      ),
+      size = 1
+    ) +
+    
+    # geom_line(data = data |> filter(ew_start <= date_no_delay), aes(
+    #   x = ew_start, y = prediction,
+    #   group = 1, color = "Fitted Model"
+    # ), linetype = 1, size = .5) +
     geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = prediction, 
                                                                        group = 1, color = "Estimate via Google Trends \n (95% C.I.)"),size=1) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = ARGO_pred, 
-                                                               group = 1, color = "Estimate via SARIMAX"),size=1) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = SAR_pred, 
-                                                               group = 1, color = "Estimate via SAR"),size=1) +
+    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = DCGT_pred, 
+                                                               group = 1, color = "Estimate via DCGT"),size=1) +
+    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = DC_pred, 
+                                                               group = 1, color = "Estimate via DC"),size=1) +
     geom_ribbon(data=data |> filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
     geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = cases_est_id, 
@@ -31,8 +39,8 @@ plot_geofacet_series <- function(merged_data, K = 5) {
     theme(axis.text.x = element_text(angle = 45, colour = "black",
                                      vjust = 1, hjust = 1),
           axis.title = element_blank(),
-          legend.key.height= unit(1.5, 'cm'),
-          legend.key.width= unit(2, 'cm'),
+          legend.key.height= unit(1.2, 'cm'),
+          legend.key.width= unit(1.5, 'cm'),
           legend.text = element_text(size=15),
           legend.position = c(0.15, 0.15)) +
     scale_x_date(date_labels = "%B",date_breaks = "1 month")+
@@ -40,13 +48,14 @@ plot_geofacet_series <- function(merged_data, K = 5) {
     scale_colour_manual("", 
                         breaks = c("Suspected Cases \n (subject to delays)", "Fitted Model", 
                                    "Estimate via Google Trends \n (95% C.I.)","Estimate via InfoDengue",
-                                   "Estimate via SARIMAX", "Estimate via SAR"),
+                                   "Estimate via DCGT", "Estimate via DC", "Baseline"),
                         values = c("Suspected Cases \n (subject to delays)" = "#ffa600", 
                                    "Fitted Model"="#003f5c",
                                    "Estimate via Google Trends \n (95% C.I.)" = "#ef5675",
                                    "Estimate via InfoDengue" = "#7a5195",
-                                   "Estimate via SARIMAX" = "#f9ff70",
-                                   "Estimate via SAR" = "#039fdb")) +
+                                   "Estimate via DCGT" = "#f9ff70",
+                                   "Estimate via DC" = "#039fdb",
+                                   "Baseline" = "#00FF00")) +
     
     
     facet_geo(~ uf, grid = "br_states_grid1", label = "name", scale = "free_y") +
@@ -107,7 +116,7 @@ plot_trends_data <- function(merged_data, state, K = 5) {
                                                                group = 1, color = "Estimate via SARIMAX"),size=1) +
     geom_line(data=merged_data |> filter(ew_start>=date_no_delay),aes(x = ew_start,y = SAR_pred, 
                                                                group = 1, color = "Estimate via SAR"),size=1) +
-    geom_line(data = merged_data |> filter(ew_start >= date_no_delay %m-% weeks(3)), aes(
+    geom_line(data = merged_data |> filter(ew_start >= date_no_delay), aes(
       x = ew_start, y = cases_est_id,
       group = 1, color = "Estimate via InfoDengue", text = desc_id
     ), size = 1) +
@@ -164,6 +173,4 @@ plot_trends_data <- function(merged_data, state, K = 5) {
     coord_cartesian(expand = FALSE) +
     scale_y_continuous(labels = scales::comma) +
     ggtitle(ifelse(uf == "Brazil", "Dengue in Brazil", paste("Dengue in", uf, "(BR)")))
-  ggplotly(fig, tooltip = "text") |>
-    config(displayModeBar = F)
 }

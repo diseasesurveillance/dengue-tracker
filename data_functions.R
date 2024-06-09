@@ -295,7 +295,10 @@ generate_data <- function(ufs,
     final_df <- rbind(final_df, merged_data)
   }
   
-  
+  final_df <- final_df |>
+    select("ew_start", "ew", "sum_of_cases", "cases_est_id", "cases_est_id_min",
+           "cases_est_id_max","dengue", "sintomas.dengue", "uf", "lwr", "upr",
+           "prediction")
   if (save) {
     write.csv(final_df,
               sprintf("data/model_results/model_%s.csv", last_ew_start),
@@ -423,8 +426,8 @@ get_lowest_maes <- function(brazil_ufs) {
 
 ## Variables
 
-model_preds <- generate_data(brazil_ufs, gamma = 0.95)
-model_preds_br <- generate_data_all_country(gamma = 0.95)
+#model_preds <- generate_data(brazil_ufs, gamma = 0.95)
+#model_preds_br <- generate_data_all_country(gamma = 0.95)
 
 ## experiment
 
