@@ -149,11 +149,12 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
         mutate(DCGT_CoverageRate = ifelse(True > DCGT_lb & True < DCGT_ub, TRUE, FALSE),
                DC_CoverageRate = ifelse(True > DC_lb & True < DC_ub, TRUE, FALSE),
                GT_CoverageRate = ifelse(True > lwr & True < upr, TRUE, FALSE),
-               #Coverage rate
+               GT2_CoverageRate = ifelse(True > lwr2 & True < upr2, TRUE, FALSE),
                ID_CoverageRate = ifelse(True > cases_est_id_min & True < cases_est_id_max, TRUE, FALSE),
                DCGT_CI_WD = DCGT_ub - DCGT_lb,
                DC_CI_WD = DC_ub - DC_lb,
                GT_CI_WD = upr - lwr,
+               GT2_CI_WD = upr2 - lwr2,
                ID_CI_WD = cases_est_id_max - cases_est_id_min)
       # Naive
       ew_start_naive_start <- min(merged_data$ew_start) %m-% weeks(1)
@@ -174,34 +175,37 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
   }
   final_df
 }
-
+data <- model_preds_metrics_2nd[which(model_preds_metrics_2nd$uf == "AC"),]
 compare_Measurement <- function(data,
+                                num_of_models = 5, num_of_CI = 4,
                                 relative_to_naive = TRUE){
   # Input data with first column to be the real value
   # and other columns are predicted values
   # And model names
+  num_of_non_CI <- num_of_models - num_of_CI
+  
+  print(data$uf[1])
   
   # Coverage rate
-  CR <- data[, c(7 : 10)]
+  CR <- data[, c((num_of_models + 2) : (num_of_models + 1 + num_of_CI))]
   
-  CR_out <- c(sum(CR$DCGT_CoverageRate)/length(CR$DCGT_CoverageRate),
-              sum(CR$GT_CoverageRate)/length(CR$GT_CoverageRate),
-              sum(CR$DC_CoverageRate)/length(CR$DC_CoverageRate),
-              sum(na.omit(CR$ID_CoverageRate))/length(CR$ID_CoverageRate),
-              NA)
+  CR_out <- as.numeric(apply(CR, 2, function(col) {
+    sum(na.omit(col)) / length(na.omit(col))
+  }))
+  
+  CR_out <- c(CR_out, rep(NaN,num_of_non_CI))
+  
   # CI width
-  CI <- data[, c(11 : 15)]
-  CI_out <- CI %>% group_by(uf) %>% mutate(DCGT_CI_WD = sum(DCGT_CI_WD)/length(DCGT_CI_WD),
-                                           DC_CI_WD = sum(DC_CI_WD)/length(DC_CI_WD),
-                                           GT_CI_WD = sum(GT_CI_WD)/length(GT_CI_WD),
-                                           ID_CI_WD = sum(na.omit(ID_CI_WD))/length(na.omit(ID_CI_WD)),)%>%
-    distinct(uf, .keep_all = TRUE) %>% ungroup %>%
-    dplyr::select(-uf) %>% as.numeric()
-  CI_out <- c(round(CI_out,2), NA)
+  CI <- data[, c((num_of_models + 2 + num_of_CI) : ncol(data))]
+  CI_out <- CI %>% 
+    mutate(across(.cols = -uf, .fns = ~ sum(na.omit(.)) / length(na.omit(.)))) %>%
+    distinct(uf, .keep_all = TRUE) %>% select(-uf)%>%as.numeric()
+  
+  CI_out <- c(CI_out, rep(NaN,num_of_non_CI))
   
   
   
-  data <- data[, c(1:6)]
+  data <- data[, c(1:(num_of_models + 1))]
   
   # Save the col names to use it in the end
   Models <- colnames(data)[-1]
@@ -366,17 +370,17 @@ get_Boxplot <- function(data,
   return(p_out)
 }
 
-
-df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
-generate_Prediction("BR", K = 4, compare_length = 20, save = F)
-
 brazil_states_full <- c(
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", 
   "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul", 
   "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí", 
   "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia", 
-  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins"
+  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins", "Brazil"
 )
+
+brazil_ufs_new <- c(brazil_ufs, "BR")
+
+df <- generate_Prediction(brazil_ufs_new, K = 4, compare_length = 20, save = F)
 
 ## ERROR QUANTIFICATION
 temp <- df |>
@@ -390,12 +394,21 @@ model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cas
   rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
 
-real_time_list <- list()
+model_preds_metrics_2nd <- temp %>% select(True, prediction, GT2, cases_est_id, IDGT, IDGT2,
+                                       GT_CoverageRate, GT2_CoverageRate, ID_CoverageRate,
+                                       GT_CI_WD, GT2_CI_WD, ID_CI_WD, uf) %>%
+  rename(Real_value = True, GT = prediction, InfoDengue = cases_est_id) %>%
+  as.data.frame()
+
+real_time_list <- list(); real_time_list_2nd <- list()
 
 count <- 1
-for (state in brazil_ufs) {
-  real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(temp$uf == state),], 
+for (state in brazil_ufs_new) {
+  real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(model_preds_metrics$uf == state),], 
                                                  relative_to_naive = F)
+  real_time_list_2nd[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics_2nd[which(model_preds_metrics_2nd$uf == state),],
+                                                                        num_of_models = 5, num_of_CI = 3,
+                                                                        relative_to_naive = F)
   count <- count + 1
 }
 
@@ -426,7 +439,8 @@ highlight_values <- function(df, type = c("min", "max"), n = 1) {
   }) %>% t() %>% as.data.frame()
 }
 
-create_latex_tables <- function(real_time_list, brazil_states_full) {
+create_latex_tables <- function(real_time_list, brazil_states_full,
+                                num_of_models = 5, num_of_CI = 4) {
   metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
   models <- unique(real_time_list[[1]]$Models)
   
@@ -451,8 +465,8 @@ create_latex_tables <- function(real_time_list, brazil_states_full) {
   metrics_df$WD <- round(metrics_df$WD, 3)
   
   # Remove specific columns from CR and WD (All NAs)
-  metrics_df$CR <- metrics_df$CR[, -c(5:7)]
-  metrics_df$WD <- metrics_df$WD[, -c(5:7)]
+  metrics_df$CR <- metrics_df$CR[, -c((num_of_CI + 1) : num_of_models)]
+  metrics_df$WD <- metrics_df$WD[, -c((num_of_CI + 1) : num_of_models)]
   
   # Generate LaTeX tables
   latex_tables <- list()
@@ -469,44 +483,8 @@ create_latex_tables <- function(real_time_list, brazil_states_full) {
   }
 }
 
-metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
-models <- unique(real_time_list[[1]]$Models)
-
-# new dataframe to store
-rmse_df <- data.frame(matrix(ncol = length(models), nrow = length(brazil_states_full)))
-colnames(rmse_df) <- models
-rownames(rmse_df) <- brazil_states_full
-
-mae_df <- rmse_df
-rmspe_df <- rmse_df
-mape_df <- rmse_df
-cr_df <- rmse_df
-wd_df <- rmse_df
-
-# fill
-for (state in brazil_states_full) {
-  data <- real_time_list[[state]]
-  rmse_df[state, ] <- data$RMSE
-  mae_df[state, ] <- data$MAE
-  rmspe_df[state, ] <- data$RMSPE
-  mape_df[state, ] <- data$MAPE
-  cr_df[state, ] <- round(data$CR,3)
-  wd_df[state, ] <- data$WD
-}
-
-metrics_list <- list(rmse = rmse_df, mae = mae_df, rmspe = rmspe_df, 
-                     mape = mape_df, cr = cr_df[, -5], wd = wd_df[, -5])
-for (name in names(metrics_list)) {
-  df <- metrics_list[[name]]
-  if(name == "cr"){
-    df_highlighted <- highlight_values(df, type = "max", n = 1)
-  }else{
-    df_highlighted <- highlight_values(df, type = "min", n = 2)
-  }
-  latex_table <- xtable(df_highlighted, caption = paste(toupper(name), "Comparison"))
-  print(latex_table, sanitize.text.function = identity, 
-        comment = FALSE, include.rownames = TRUE)
-}
+create_latex_tables(real_time_list, brazil_states_full)
+create_latex_tables(real_time_list_2nd, brazil_states_full, num_of_CI = 3)
 
 ###################### boxplot ######################
 model_preds_p <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive, uf) %>%
