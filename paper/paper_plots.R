@@ -3,17 +3,17 @@ library(dplyr)
 plot_geofacet_series <- function(merged_data, K = 5) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
   data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
-  date_no_delay <- data[nrow(data) - K, ]$ew_start
+  #date_no_delay <- data[nrow(data) - K, ]$ew_start
   
   ggplot(data) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),
+    geom_line(data=data,
       aes(
         x = ew_start, y = sum_of_cases, group = 1,
         colour = "Suspected Cases \n (subject to delays)"
       ),
       size = 1
     ) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),
+    geom_line(data=data,
       aes(
         x = ew_start, y = True, group = 1,
         colour = "Baseline"
@@ -25,15 +25,15 @@ plot_geofacet_series <- function(merged_data, K = 5) {
     #   x = ew_start, y = prediction,
     #   group = 1, color = "Fitted Model"
     # ), linetype = 1, size = .5) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = prediction, 
+    geom_line(data=data  ,aes(x = day,y = prediction, 
                                                                        group = 1, color = "Estimate via Google Trends \n (95% C.I.)"),size=1) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = DCGT_pred, 
+    geom_line(data=data  ,aes(x = day,y = DCGT_pred, 
                                                                group = 1, color = "Estimate via DCGT"),size=1) +
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = DC_pred, 
+    geom_line(data=data  ,aes(x = day,y = DC_pred, 
                                                                group = 1, color = "Estimate via DC"),size=1) +
-    geom_ribbon(data=data |> filter(ew_start>=date_no_delay),aes(x = day,ymin=lwr, ymax=upr),
+    geom_ribbon(data=data  ,aes(x = day,ymin=lwr, ymax=upr),
                 fill = "#D81B60", linetype=2, alpha=0.3)+
-    geom_line(data=data |> filter(ew_start>=date_no_delay),aes(x = day,y = cases_est_id, 
+    geom_line(data=data  ,aes(x = day,y = cases_est_id, 
                                                                        group = 2, color = "Estimate via InfoDengue"),size=1) +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 45, colour = "black",

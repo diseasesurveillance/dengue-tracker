@@ -428,8 +428,8 @@ get_lowest_maes <- function(brazil_ufs) {
 
 ## Variables
 
-#model_preds <- generate_data(brazil_ufs, gamma = 0.95)
-#model_preds_br <- generate_data_all_country(gamma = 0.95)
+model_preds <- generate_data(brazil_ufs, gamma = 0.95)
+model_preds_br <- generate_data_all_country(gamma = 0.95)
 
 ## experiment
 
