@@ -240,8 +240,8 @@ plot_geofacet <- function(merged_data, K = 5) {
           axis.title = element_blank(),
           legend.key.height= unit(2, 'cm'),
           legend.key.width= unit(2, 'cm'),
-          legend.text = element_text(size=15),
-          legend.position = c(0.15, 0.15)) +
+          legend.text = element_text(size=12),
+          legend.position = c(0.12, 0.12)) +
     scale_x_date(date_labels = "%B",date_breaks = "1 month")+
     scale_y_continuous(expand = c(0, 0), limits=c(0, NA), labels = scales::unit_format(scale = 1e-3, unit = "k")) +
     scale_colour_manual("", 

@@ -1,9 +1,7 @@
-library(leaflet)
 library(sf)
 library(geobr)
 library(ggplot2)
 library(geofacet)
-library(plotly)
 library(tidyverse)
 library(leaflet)
 library(apexcharter)
@@ -275,7 +273,6 @@ generate_data <- function(ufs,
                           save = T) {
 
   final_df <- data.frame()
-
   for (uf in ufs) {
     out <- process_data(uf, last_ew_start, ew = ew)
     data <- out[[1]]
