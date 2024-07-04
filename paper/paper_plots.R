@@ -1,4 +1,5 @@
 library(dplyr)
+library(stringr)
 
 plot_geofacet_series <- function(merged_data, K = 5) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
@@ -173,4 +174,42 @@ plot_trends_data <- function(merged_data, state, K = 5) {
     coord_cartesian(expand = FALSE) +
     scale_y_continuous(labels = scales::comma) +
     ggtitle(ifelse(uf == "Brazil", "Dengue in Brazil", paste("Dengue in", uf, "(BR)")))
+}
+
+
+plot_map_best_metric <- function(model_results, states_map, metric) {
+  states <- names(model_results)
+
+  lowest_df <- tibble(name_state = character(),
+                       best_model = character())
+
+  for(state in states) {
+    if (state %in% c("Espírito Santo", "Roraima")) next;
+    #lowest_MAE$State <- state
+    lowest <- model_results[[state]]$Models[[which.min(model_results[[state]][[metric]])]]
+    
+    row <- tibble(name_state = str_to_title(state), best_model = lowest)
+    
+    lowest_df <- add_row(lowest_df, row)
+  }
+  
+  merged_data <- states_map %>%
+    left_join(lowest_df, by = c("name_state" = "name_state"))
+  
+  # Plot the merged data
+  ggplot(data = merged_data) +
+    geom_sf(aes(fill = best_model)) +
+    theme_bw() +
+    theme(
+      panel.background = element_blank(),      # Remove background of the plot panel
+      panel.grid.major = element_blank(),       # Remove major grid lines
+      panel.grid.minor = element_blank(),       # Remove minor grid lines
+      plot.background = element_blank(),        # Remove background of the entire plot
+      axis.text = element_blank(),              # Remove axis text
+      axis.title = element_blank(),             # Remove axis titles
+      axis.ticks = element_blank(),             # Remove axis ticks
+      panel.border = element_blank()
+    ) +
+    labs(fill = "Best Model",
+         title = sprintf("Best Model by State (Based on %s)", metric))
 }

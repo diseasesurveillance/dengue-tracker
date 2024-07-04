@@ -408,7 +408,7 @@ model_preds_metrics_2nd <- temp %>% select(True, prediction, GT2, cases_est_id, 
 real_time_list <- list(); real_time_list_2nd <- list()
 
 count <- 1
-for (state in brazil_ufs_new) {
+for (state in brazil_ufs) {
   real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(model_preds_metrics$uf == state),], 
                                                  relative_to_naive = F)
   real_time_list_2nd[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics_2nd[which(model_preds_metrics_2nd$uf == state),],
@@ -747,5 +747,7 @@ df <- df |>
 
 plot_geofacet_series(temp |> filter(uf != "BR"))
 
+plot_map_best_metric(real_time_list, states_map, "MAE")
+plot_map_best_metric(real_time_list, states_map, "MAPE")
 # 
 # plot_trends_data(df, "RJ")
