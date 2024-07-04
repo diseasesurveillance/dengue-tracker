@@ -91,9 +91,15 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
 
   final_df <- data.frame()
   ## Weeks to be considered
-  epi_weeks <- seq(202410, 202422, by = 1)
+  epi_weeks <- seq(202410, 202426, by = 1)
 
   for(epi_week in epi_weeks){
+
+    ## Since we didn't get data from 202424, we will compare the results for
+    ## 202420 with 202425
+    if(epi_week == 202420) {
+      K <- 5
+    } else K <- K_true
     # K_true should be larger than K
     if(epi_week > last(epi_weeks) - K_true) { break }
     ## Dates for training model
@@ -102,11 +108,12 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
     ## Dates for filtering data to compare
     ew_start_compare <- ew_start_ %m+% weeks(K)
     epi_week_compare <- epi_week + K
+    
     print(epi_week)
     for (uf in ufs) {
       # out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
       # Get K_ture is to control the delay of weeks for the "true data". The default value is 4.
-      out_compare <- process_data(uf, ew_start_ %m+% weeks(K_true + 1), ew = (epi_week_compare + K_true - K))
+      out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = (epi_week_compare + K - K))
       data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
                                                          ew_start > (ew_start_ %m-% weeks(20))), 20)
       if(uf == "ES") { next }
@@ -378,9 +385,7 @@ brazil_states_full <- c(
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins", "Brazil"
 )
 
-brazil_ufs_new <- c(brazil_ufs, "BR")
-
-df <- generate_Prediction(brazil_ufs_new, K = 4, compare_length = 20, save = F)
+df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
 
 ## ERROR QUANTIFICATION
 temp <- df |>
@@ -740,7 +745,7 @@ ggplot(data = brazil_states) +
 df <- df |>
   filter(ew_pred == max(df$ew_pred))
 
-plot_geofacet_series(df)
+plot_geofacet_series(temp |> filter(uf != "BR"))
 
 # 
 # plot_trends_data(df, "RJ")
