@@ -17,11 +17,6 @@ names(d)
 # tibble as data.frame
 d <- as.data.frame(d)
 
-#d <- d[, c("data_iniSE", "data_iniSE", "geocode", "casos_est")]
-#write.csv(d, paste0("data/2dallmuni", ew_start, ey_start, ew_end, ey_end, ".csv"))
-
-############################################################################################
-
 # Specify d$idtime, d$nametime, d$idloc, map$idloc, map$nameloc, map$idloc2, map$nameloc2
 dmapvbles <- c("data_iniSE", "data_iniSE", "geocode", "code_mn", "name_mn", "cod_stt", "nam_stt")
 # # code_muni state
