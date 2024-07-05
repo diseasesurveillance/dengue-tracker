@@ -17,22 +17,17 @@ brazil_ufs <- c(
   "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO", "BR"
 )
 
-
+merged_data <- data
 run_model_DCGT <- function(merged_data, topics, 
                            last_date = NULL,
-                           offset_lag = 1, offset_GT = 0.001,
-                           K = 5, critical_level = 0.05,
-                           if_pred_){
+                           K = 5, gamma = 0.95){
   # set date
   if(is.null(last_date)){
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
   }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
   start <- end %m-% years(3)
   # log-trans
-  merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics) %>%
-    mutate(sum_of_cases = log(sum_of_cases + offset_lag),
-           dengue  = log(dengue + offset_GT),
-           sintomas.dengue = log(sintomas.dengue + offset_GT))
+  merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics) 
   # get train and pred data
   merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
   end_pred <- end %m+% weeks(K); start_pred <- end %m+% weeks(1)
@@ -40,12 +35,24 @@ run_model_DCGT <- function(merged_data, topics,
   # fit the model
   fit <- auto.arima(merged_data_temp_train$sum_of_cases, 
                     xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
-  forec <- forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = 1 - critical_level)
+  forec <- forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = gamma)
+  
+  # Conformative QR
+  error <-
+    apply(cbind(
+      forec$lower - forec$mean,
+      forec$mean - forec$upper
+    ), 1, max)
+  
+  quantile_error <- quantile(error, probs = gamma, na.rm = T)
+  
+  adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
+  adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
   
   # rearrange
-  forec_out <- tibble(DCGT_pred = as.numeric(exp(forec$mean) - offset_lag), 
-                      DCGT_lb = as.numeric(exp(forec$lower) - offset_lag),
-                      DCGT_ub = as.numeric(exp(forec$upper) - offset_lag))
+  forec_out <- tibble(DCGT_pred = as.numeric(forec$mean), 
+                      DCGT_lb = as.numeric(adjusted_forecast_lower),
+                      DCGT_ub = as.numeric(adjusted_forecast_upper))
   forec_out <- cbind(tail(merged_data, 20), forec_out)
   
   forec_out
@@ -53,8 +60,7 @@ run_model_DCGT <- function(merged_data, topics,
 
 run_model_DC <- function(merged_data, topics, 
                           last_date = NULL,
-                          offset_lag = 1,
-                          K = 4, critical_level = 0.05){
+                          K = 4, gamma = 0.95){
   # set date
   if(is.null(last_date)){
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
@@ -65,37 +71,50 @@ run_model_DC <- function(merged_data, topics,
   end <- (end - wday(end) + 1)
   
   # log-trans
-  merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases) %>%
-    mutate(sum_of_cases = log(sum_of_cases + offset_lag))
+  merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases)
   
   # get train and pred data
   merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
   # fit the model
   fit <- auto.arima(merged_data_temp_train$sum_of_cases)
-  forec <- forecast(fit, h = K,level = 1 - critical_level)
+  forec <- forecast(fit, h = K, level = gamma)
+  
+  # Conformative QR
+  error <-
+    apply(cbind(
+      forec$lower - forec$mean,
+      forec$mean - forec$upper
+    ), 1, max)
+  
+  quantile_error <- quantile(error, probs = gamma, na.rm = T)
+  
+  adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
+  adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
   
   # rearrange
-  forec_out <- tibble(DC_pred = as.numeric(exp(forec$mean) - offset_lag), 
-                      DC_lb = as.numeric(exp(forec$lower) - offset_lag),
-                      DC_ub = as.numeric(exp(forec$upper) - offset_lag))
+  forec_out <- tibble(DC_pred = as.numeric(forec$mean), 
+                      DC_lb = as.numeric(adjusted_forecast_lower),
+                      DC_ub = as.numeric(adjusted_forecast_upper))
   forec_out <- cbind(tail(merged_data, 20), forec_out)
   
   forec_out
 }
 
-
-generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save = T,  gamma = 0.05){
+generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save = T,  gamma = 0.95){
   
   # if(compare_length > K){
   #   stop("Error! The length of prediction to compare should be equal to /smaller than the prediction length(K)!")}
 
   final_df <- data.frame()
   ## Weeks to be considered
-  epi_weeks <- seq(202410, 202422, by = 1)
+  epi_weeks <- seq(202410, 202426, by = 1)
 
   for(epi_week in epi_weeks){
     # K_true should be larger than K
     if(epi_week > last(epi_weeks) - K_true) { break }
+    
+    # 202424 is missing
+    if((epi_week+K) == 202424){K = K+1;  K_true = K_true+1}
     ## Dates for training model
     ew_start_ <- get_date(week = as.numeric(substr(epi_week, 5, 6)), year = as.numeric(substr(epi_week, 1, 4)))
 
@@ -124,8 +143,8 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       data <- data %>% mutate(lwr2 = data2$lwr, upr2 = data2$upr, GT2 = data2$prediction,
                               IDGT = (prediction + cases_est_id) / 2, IDGT2 = (GT2 + cases_est_id) / 2)
       #data <- tail(data, 20)
-      data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
-      data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, critical_level = gamma)
+      data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, gamma = gamma)
+      data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, gamma = gamma)
       
       merged_data <- merge(data_DCGT, data_DC, by=names(data_DCGT)[1:(ncol(data_DCGT) - 3)])
       #merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
@@ -163,9 +182,9 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
         select(sum_of_cases)
       merged_data$Naive <- Naive$sum_of_cases
       
-      
       final_df <- rbind(final_df, merged_data)
     }
+    if((epi_week+K) == 202424){K = K-1; K_true = K_true-1} # Change back to 4
   }
   
   if (save) {
@@ -175,7 +194,7 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
   }
   final_df
 }
-data <- model_preds_metrics_2nd[which(model_preds_metrics_2nd$uf == "AC"),]
+
 compare_Measurement <- function(data,
                                 num_of_models = 5, num_of_CI = 4,
                                 relative_to_naive = TRUE){
@@ -440,7 +459,8 @@ highlight_values <- function(df, type = c("min", "max"), n = 1) {
 }
 
 create_latex_tables <- function(real_time_list, brazil_states_full,
-                                num_of_models = 5, num_of_CI = 4) {
+                                num_of_models = 5, num_of_CI = 4,
+                                latex_code = TRUE) {
   metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
   models <- unique(real_time_list[[1]]$Models)
   
@@ -468,23 +488,29 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   metrics_df$CR <- metrics_df$CR[, -c((num_of_CI + 1) : num_of_models)]
   metrics_df$WD <- metrics_df$WD[, -c((num_of_CI + 1) : num_of_models)]
   
-  # Generate LaTeX tables
-  latex_tables <- list()
-  for (name in names(metrics_df)) {
-    df <- metrics_df[[name]]
-    if (name == "CR") {
-      df_highlighted <- highlight_values(df, type = "max", n = 1)
-    } else {
-      df_highlighted <- highlight_values(df, type = "min", n = 2)
+  if(latex_code){
+    # Generate LaTeX tables
+    latex_tables <- list()
+    for (name in names(metrics_df)) {
+      df <- metrics_df[[name]]
+      if (name == "CR") {
+        df_highlighted <- highlight_values(df, type = "max", n = 1)
+      } else {
+        df_highlighted <- highlight_values(df, type = "min", n = 2)
+      }
+      latex_table <- xtable(df_highlighted, caption = paste(toupper(name), "Comparison"))
+      latex_tables[[name]] <- print(latex_table, sanitize.text.function = identity,
+                                    comment = FALSE, include.rownames = TRUE)
     }
-    latex_table <- xtable(df_highlighted, caption = paste(toupper(name), "Comparison"))
-    latex_tables[[name]] <- print(latex_table, sanitize.text.function = identity, 
-                                  comment = FALSE, include.rownames = TRUE)
+  }else{
+    return(metrics_df)
   }
 }
 
 create_latex_tables(real_time_list, brazil_states_full)
 create_latex_tables(real_time_list_2nd, brazil_states_full, num_of_CI = 3)
+
+
 
 ###################### boxplot ######################
 model_preds_p <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive, uf) %>%
@@ -583,108 +609,103 @@ ggplot(data = brazil_states) +
 #################################################################
 ###################### BR states for model ######################
 #################################################################
-# Get Brazil state boundaries data
-# Get Brazil state boundaries data
-brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
-
-# Use RMSE data frame
-# compare_data <- rmse_df
-
-# Uncomment the following lines to use other data frames
-# Use MAE data frame
-compare_data <- mae_df
-
-# Use RMSPE data frame
-# compare_data <- rmspe_df
-
-# Use MAPE data frame
-# compare_data <- mape_df
-
-# Set specific rows to avoid the output being a list
-compare_data[c(8),] <- c(2, 2, 2, 1, 2)
-compare_data[c(23),] <- c(2, 2, 2, 1, 2)
-
-# Find the column names with the minimum value for each row
-best_models <- apply(compare_data, 1, function(row) {
-  colnames(compare_data)[which.min(row)]
-})
-best_models[8] <- "Non-comparable"
-best_models[23] <- "Non-comparable"
-
-# Create a data frame with state names and corresponding models
-states_models <- data.frame(
-  name = rownames(compare_data),
-  best_models = factor(best_models),
-  stringsAsFactors = FALSE
-)
-
-# Rearrange the order
-states_models <- states_models[match(brazil_states$name, states_models$name), ]
-rownames(states_models) <- NULL
-
-# Assign models to Brazil states
-brazil_states$model <- states_models$best_models
-
-# Ensure geometry is valid
-brazil_states <- st_make_valid(brazil_states)
-state_centers <- st_centroid(brazil_states)
-
-# Set central coordinates
-state_coords <- st_coordinates(state_centers)
-
-brazil_states <- brazil_states %>%
-  mutate(
-    centroid_long = state_coords[, 1],
-    centroid_lat = state_coords[, 2],
-    postal = as.character(postal),  # Ensure state abbreviations are characters
-    name = as.character(name)  # Ensure state names are characters
+metrcis_plot <- function(metric_table){
+  # Get Brazil state boundaries data
+  brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
+  
+  # Set specific rows to avoid the output being a list
+  metric_table[c(8),] <- c(2, 2, 2, 1, 2)
+  metric_table[c(23),] <- c(2, 2, 2, 1, 2)
+  
+  # Find the column names with the minimum value for each row
+  best_models <- apply(metric_table, 1, function(row) {
+    colnames(metric_table)[which.min(row)]
+  })
+  best_models[8] <- "Non-comparable"
+  best_models[23] <- "Non-comparable"
+  
+  # Create a data frame with state names and corresponding models
+  states_models <- data.frame(
+    name = rownames(metric_table),
+    best_models = factor(best_models),
+    stringsAsFactors = FALSE
   )
+  
+  # Rearrange the order
+  states_models <- states_models[match(brazil_states$name, states_models$name), ]
+  rownames(states_models) <- NULL
+  
+  # Assign models to Brazil states
+  brazil_states$model <- states_models$best_models
+  
+  # Ensure geometry is valid
+  brazil_states <- st_make_valid(brazil_states)
+  state_centers <- st_centroid(brazil_states)
+  
+  # Set central coordinates
+  state_coords <- st_coordinates(state_centers)
+  
+  brazil_states <- brazil_states %>%
+    mutate(
+      centroid_long = state_coords[, 1],
+      centroid_lat = state_coords[, 2],
+      postal = as.character(postal),  # Ensure state abbreviations are characters
+      name = as.character(name)  # Ensure state names are characters
+    )
+  
+  # Define states with different arrow operations
+  states_with_arrows_1 <- c("PB", "PE", "AL", "SE")
+  states_with_arrows_2 <- c("RN")
+  states_with_arrows_3 <- c("MS", "SC", "RS")
+  states_with_arrows_4 <- c("DF", "ES", "RJ")
+  
+  # Create the plot
+  p <- ggplot(data = brazil_states) +
+    geom_sf(aes(fill = model), color = "black") +  # Draw state boundaries
+    geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2,
+                                                          states_with_arrows_3, states_with_arrows_4)),
+              aes(x = centroid_long, y = centroid_lat, label = name),
+              color = "black", size = 3) +  # Add state names at centroids
+    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1),
+                 aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for specific states
+    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1),
+              aes(x = -34, y = centroid_lat, label = name),
+              color = "black", size = 3, hjust = -0.1) +  # Add state names near arrows
+    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2),
+                 aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat),
+                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
+    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2),
+              aes(x = -40, y = -1.3, label = name),
+              color = "black", size = 3, hjust = -0.1) +
+    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3),
+                 aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
+    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3),
+              aes(x = -70, y = centroid_lat, label = name),
+              color = "black", size = 3, hjust = -0.1) +
+    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4),
+                 aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
+    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4),
+              aes(x = -38, y = centroid_lat, label = name),
+              color = "black", size = 3, hjust = -0.1) +
+    scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
+                                 "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
+                      name = "Model", 
+                      labels = c("DCGT" = "DC & GT")) +
+    theme_minimal() +
+    labs(title = NULL, x = "Longitude", y = "Latitude")
+  
+  p
+}
 
-# Define states with different arrow operations
-states_with_arrows_1 <- c("PB", "PE", "AL", "SE")
-states_with_arrows_2 <- c("RN")
-states_with_arrows_3 <- c("MS", "SC", "RS")
-states_with_arrows_4 <- c("DF", "ES", "RJ")
+# Use MAE data frame
+mae_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAE
+metrcis_plot(mae_df)
 
-# Create the plot
-ggplot(data = brazil_states) +
-  geom_sf(aes(fill = model), color = "black") +  # Draw state boundaries
-  geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2,
-                                                        states_with_arrows_3, states_with_arrows_4)),
-            aes(x = centroid_long, y = centroid_lat, label = name),
-            color = "black", size = 3) +  # Add state names at centroids
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1),
-               aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for specific states
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1),
-            aes(x = -34, y = centroid_lat, label = name),
-            color = "black", size = 3, hjust = -0.1) +  # Add state names near arrows
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2),
-               aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat),
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2),
-            aes(x = -40, y = -1.3, label = name),
-            color = "black", size = 3, hjust = -0.1) +
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3),
-               aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3),
-            aes(x = -70, y = centroid_lat, label = name),
-            color = "black", size = 3, hjust = -0.1) +
-  geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4),
-               aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
-               color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
-  geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4),
-            aes(x = -38, y = centroid_lat, label = name),
-            color = "black", size = 3, hjust = -0.1) +
-  scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
-                               "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
-                    name = "Model", 
-                    labels = c("DCGT" = "DC & GT")) +
-  theme_minimal() +
-  labs(title = NULL, x = "Longitude", y = "Latitude")
-
-
+mape_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAPE
+metrcis_plot(mape_df)
 # temp$err_pred <- abs(temp$prediction - temp$True)
 # temp$err_infodengue <- abs(temp$cases_est_id - temp$True)
 # temp$err_argo <- abs(temp$ARGO_pred - temp$True)
@@ -735,6 +756,19 @@ ggplot(data = brazil_states) +
 # print(latex_table, sanitize.text.function = identity)
 # 
 # 
+# plot for dengue cases over time
+BR_trends <- read.csv("data/weekly_data/Infodengue/202426/BR_2024-06-30_infodengue.csv")
+BR_trends$ew_start <- as.Date(BR_trends$ew_start)
+
+ggplot(BR_trends, aes(x = ew_start, y = sum_of_cases, color = sum_of_cases)) +
+  geom_line(size = 1) +  
+  scale_color_gradient(low = "green", high = "red") +
+  labs(x = "Date",
+       y = "Dengue cases",
+       color = "Dengue cases") +
+  theme_minimal()  
+
+
 # ### PLOTS
 # 
 df <- df |>
