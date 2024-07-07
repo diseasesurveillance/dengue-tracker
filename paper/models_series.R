@@ -485,10 +485,9 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
     }
   }
   
-  # Round CR and WD data
-  metrics_df$CR <- round(metrics_df$CR, 3)
-  metrics_df$WD <- round(metrics_df$WD, 3)
-  
+  # Round data
+  metrics_df <- lapply(metrics_df, function(df){ df %>% mutate(across(where(is.numeric), ~ round(., 2)))})
+
   # Remove specific columns from CR and WD (All NAs)
   metrics_df$CR <- metrics_df$CR[, -c((num_of_CI + 1) : num_of_models)]
   metrics_df$WD <- metrics_df$WD[, -c((num_of_CI + 1) : num_of_models)]
@@ -511,10 +510,8 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
     return(metrics_df)
   }
 }
-
 create_latex_tables(real_time_list, brazil_states_full)
 create_latex_tables(real_time_list_2nd, brazil_states_full, num_of_CI = 3)
-
 
 
 ###################### boxplot ######################
@@ -582,32 +579,31 @@ ggplot(data = brazil_states) +
   geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2, 
                                                         states_with_arrows_3, states_with_arrows_4)), 
             aes(x = centroid_long, y = centroid_lat, label = name), 
-            color = "red", size = 3) +  # Add state names directly at centroid for states not in any arrow lists
+            color = "black", size = 4.5) +  # Add state names directly at centroid for states not in any arrow lists
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1), 
                aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for states_with_arrows_1
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1), 
             aes(x = -34, y = centroid_lat, label = name), 
-            color = "red", size = 3, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
+            color = "black", size = 4.5, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2), 
                aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2), 
             aes(x = -40, y = -1.3, label = name), 
-            color = "red", size = 3, hjust = -0.1) +  
+            color = "black", size = 4.5, hjust = -0.1) +  
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3), 
                aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3), 
-            aes(x = -67, y = centroid_lat, label = name), 
-            color = "red", size = 3, hjust = -0.1) +  
+            aes(x = -73, y = centroid_lat, label = name), 
+            color = "black", size = 4.5, hjust = -0.1) +  
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4), 
                aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4), 
             aes(x = -38, y = centroid_lat, label = name), 
-            color = "red", size = 3, hjust = -0.1) +  
-  
+            color = "black", size = 4.5, hjust = -0.1) +  
   theme_minimal() +
   labs(title = NULL, x = "Longitude", y = "Latitude")
 
@@ -697,10 +693,20 @@ metrcis_plot <- function(metric_table){
               color = "black", size = 3, hjust = -0.1) +
     scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
                                  "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
-                      name = "Model", 
+                      name = "Best Model", 
                       labels = c("DCGT" = "DC & GT")) +
     theme_minimal() +
-    labs(title = NULL, x = "Longitude", y = "Latitude")
+    labs(title = NULL, x = "Longitude", y = "Latitude") +
+    theme(
+      panel.background = element_blank(),      # Remove background of the plot panel
+      panel.grid.major = element_blank(),       # Remove major grid lines
+      panel.grid.minor = element_blank(),       # Remove minor grid lines
+      plot.background = element_blank(),        # Remove background of the entire plot
+      axis.text = element_blank(),              # Remove axis text
+      axis.title = element_blank(),             # Remove axis titles
+      axis.ticks = element_blank(),             # Remove axis ticks
+      panel.border = element_blank()
+    ) 
   
   p
 }
@@ -711,6 +717,12 @@ metrcis_plot(mae_df)
 
 mape_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAPE
 metrcis_plot(mape_df)
+
+rmse_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$RMSE
+metrcis_plot(rmse_df)
+
+rmspe_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$RMSPE
+metrcis_plot(rmspe_df)
 # temp$err_pred <- abs(temp$prediction - temp$True)
 # temp$err_infodengue <- abs(temp$cases_est_id - temp$True)
 # temp$err_argo <- abs(temp$ARGO_pred - temp$True)
