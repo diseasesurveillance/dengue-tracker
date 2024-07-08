@@ -666,31 +666,31 @@ metrcis_plot <- function(metric_table){
     geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2,
                                                           states_with_arrows_3, states_with_arrows_4)),
               aes(x = centroid_long, y = centroid_lat, label = name),
-              color = "black", size = 3) +  # Add state names at centroids
+              color = "black", size = 5) +  # Add state names at centroids
     geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1),
                  aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
                  color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for specific states
     geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1),
               aes(x = -34, y = centroid_lat, label = name),
-              color = "black", size = 3, hjust = -0.1) +  # Add state names near arrows
+              color = "black", size = 5, hjust = -0.1) +  # Add state names near arrows
     geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2),
                  aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat),
                  color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
     geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2),
               aes(x = -40, y = -1.3, label = name),
-              color = "black", size = 3, hjust = -0.1) +
+              color = "black", size = 5, hjust = -0.1) +
     geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3),
                  aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
                  color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
     geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3),
-              aes(x = -70, y = centroid_lat, label = name),
-              color = "black", size = 3, hjust = -0.1) +
+              aes(x = -73, y = centroid_lat, label = name),
+              color = "black", size = 5, hjust = -0.1) +
     geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4),
                  aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
                  color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
     geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4),
               aes(x = -38, y = centroid_lat, label = name),
-              color = "black", size = 3, hjust = -0.1) +
+              color = "black", size = 5, hjust = -0.1) +
     scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
                                  "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
                       name = "Best Model", 
@@ -713,16 +713,34 @@ metrcis_plot <- function(metric_table){
 
 # Use MAE data frame
 mae_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAE
-metrcis_plot(mae_df)
+mae <- metrcis_plot(mae_df)
 
 mape_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAPE
-metrcis_plot(mape_df)
+mape <- metrcis_plot(mape_df)
 
 rmse_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$RMSE
-metrcis_plot(rmse_df)
+rmse <- metrcis_plot(rmse_df)
 
 rmspe_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$RMSPE
-metrcis_plot(rmspe_df)
+rmspe <- metrcis_plot(rmspe_df)
+
+# Save in a higher resolution
+plots <- list(mae, mape, rmse, rmspe)
+filenames <- c("map_br_model_mae.png", "map_br_model_mape.png", "map_br_model_rmse.png", "map_br_model_rmspe.png")
+
+# Loop to save the plots
+for (i in 1:length(plots)) {
+  ggsave(
+    filename = filenames[i],           # file name
+    plot = plots[[i]],                 # object to save
+    path = "/Users/xiaoy0a/Desktop/Task/Nowcasting/7. Slides/",  # save dir
+    width = 12,                        # width
+    height = 8,                        # height
+    units = "in",                      # size, "in", "cm", "mm"
+    dpi = 300                          # DPI
+  )
+}
+
 # temp$err_pred <- abs(temp$prediction - temp$True)
 # temp$err_infodengue <- abs(temp$cases_est_id - temp$True)
 # temp$err_argo <- abs(temp$ARGO_pred - temp$True)
