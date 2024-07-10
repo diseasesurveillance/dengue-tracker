@@ -16,7 +16,7 @@ source("plotting_functions.R")
 ```
 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE,warning=FALSE, message = FALSE}
 vSelectTime <- sort(d$idtime)[length(d$idtime)] # time for map
 inputSelectVble <- "casos_est" # variable for map
 

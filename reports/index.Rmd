@@ -19,7 +19,7 @@ Dengue data from surveillance systems is crucial for prevention and control. Unf
 
 
 ```{r process-data, echo = FALSE}
-model_preds <- generate_data(brazil_ufs, gamma = 0.95)
+model_preds <- generate_data(brazil_ufs, gamma = 0.95, save=F)
 ```
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
