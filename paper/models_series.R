@@ -26,33 +26,66 @@ run_model_DCGT <- function(merged_data, topics,
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
   }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
   start <- end %m-% years(3)
-  # log-trans
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics) 
   # get train and pred data
   merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
   end_pred <- end %m+% weeks(K); start_pred <- end %m+% weeks(1)
   merged_data_temp_pred <- merged_data_temp %>% filter(ew_start <= end_pred & ew_start >= start_pred)
   # fit the model
-  fit <- auto.arima(merged_data_temp_train$sum_of_cases, 
-                    xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
-  forec <- forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = gamma)
+  # fit <- auto.arima(merged_data_temp_train$sum_of_cases, 
+  #                   xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
+  # forec <- forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = gamma)
+  # fit the model and output NA if error
+  fit <- tryCatch(
+    {
+      auto.arima(merged_data_temp_train$sum_of_cases, 
+                     xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
+    },
+    error = function(e) {
+      return(NULL)
+    }
+  )
   
-  # Conformative QR
-  error <-
-    apply(cbind(
-      forec$lower - forec$mean,
-      forec$mean - forec$upper
-    ), 1, max)
+  forec <- tryCatch(
+    {
+      forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = gamma)
+    },
+    error = function(e) {
+      return(NULL)
+    }
+  )
+
   
-  quantile_error <- quantile(error, probs = gamma, na.rm = T)
-  
-  adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
-  adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
-  
-  # rearrange
-  forec_out <- tibble(DCGT_pred = as.numeric(forec$mean), 
-                      DCGT_lb = as.numeric(adjusted_forecast_lower),
-                      DCGT_ub = as.numeric(adjusted_forecast_upper))
+  if (is.null(fit) | is.null(forec)) {
+    forec_out <- tibble(
+      DCGT_pred = rep(NA, K),
+      DCGT_lb = rep(NA, K),
+      DCGT_ub = rep(NA, K)
+    )
+  }else{
+    # before change on (July 9th)
+    # Conformative QR
+    # error <-
+    #   apply(cbind(
+    #     forec$lower - forec$mean,
+    #     forec$mean - forec$upper
+    #   ), 1, max)
+    # 
+    # quantile_error <- quantile(error, probs = gamma, na.rm = T)
+    # 
+    # adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
+    # adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
+    # 
+    # # rearrange
+    # forec_out <- tibble(DCGT_pred = as.numeric(forec$mean), 
+    #                     DCGT_lb = as.numeric(adjusted_forecast_lower),
+    #                     DCGT_ub = as.numeric(adjusted_forecast_upper))
+    # forec_out <- cbind(tail(merged_data, 20), forec_out)
+    
+    forec_out <- tibble(DCGT_pred = as.numeric(forec$mean),
+                        DCGT_lb = as.numeric(forec$lower),
+                        DCGT_ub = as.numeric(forec$upper))
+  }
   forec_out <- cbind(tail(merged_data, 20), forec_out)
   
   forec_out
@@ -69,34 +102,63 @@ run_model_DC <- function(merged_data, topics,
   
   # Convert to the start of ew weeks
   end <- (end - wday(end) + 1)
-  
-  # log-trans
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases)
   
   # get train and pred data
   merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
   # fit the model
-  fit <- auto.arima(merged_data_temp_train$sum_of_cases)
-  forec <- forecast(fit, h = K, level = gamma)
+  # fit <- auto.arima(merged_data_temp_train$sum_of_cases)
+  # forec <- forecast(fit, h = K, level = gamma)
+  fit <- tryCatch(
+    {
+      auto.arima(merged_data_temp_train$sum_of_cases)
+    },
+    error = function(e) {
+      return(NULL)
+    }
+  )
   
-  # Conformative QR
-  error <-
-    apply(cbind(
-      forec$lower - forec$mean,
-      forec$mean - forec$upper
-    ), 1, max)
+  forec <- tryCatch(
+    {
+      forecast(fit, h = K, level = gamma)
+    },
+    error = function(e) {
+      return(NULL)
+    }
+  )
   
-  quantile_error <- quantile(error, probs = gamma, na.rm = T)
-  
-  adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
-  adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
-  
-  # rearrange
-  forec_out <- tibble(DC_pred = as.numeric(forec$mean), 
-                      DC_lb = as.numeric(adjusted_forecast_lower),
-                      DC_ub = as.numeric(adjusted_forecast_upper))
+  if (is.null(fit) | is.null(forec)) {
+    forec_out <- tibble(
+      DC_pred = rep(NA, K),
+      DC_lb = rep(NA, K),
+      DC_ub = rep(NA, K)
+    )
+  }else{
+    # before change on (July 9th)
+    # Conformative QR
+    # error <-
+    #   apply(cbind(
+    #     forec$lower - forec$mean,
+    #     forec$mean - forec$upper
+    #   ), 1, max)
+    # 
+    # quantile_error <- quantile(error, probs = gamma, na.rm = T)
+    # 
+    # adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
+    # adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
+    # 
+    # # rearrange
+    # forec_out <- tibble(DC_pred = as.numeric(forec$mean), 
+    #                     DC_lb = as.numeric(adjusted_forecast_lower),
+    #                     DC_ub = as.numeric(adjusted_forecast_upper))
+    # forec_out <- cbind(tail(merged_data, 20), forec_out)
+    
+    forec_out <- tibble(DC_pred = as.numeric(forec$mean),
+                        DC_lb = as.numeric(forec$lower),
+                        DC_ub = as.numeric(forec$upper))
+  }
   forec_out <- cbind(tail(merged_data, 20), forec_out)
-  
+
   forec_out
 }
 
@@ -136,7 +198,7 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
                                                          ew_start > (ew_start_ %m-% weeks(20))), 20)
       if(uf == "ES") { next }
-      if(uf == "RR"){ next }
+      # if(uf == "RR"){ next }
       
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
@@ -149,7 +211,11 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       }
       data <- data %>% mutate(lwr2 = data2$lwr, upr2 = data2$upr, GT2 = data2$prediction,
                               IDGT = (prediction + cases_est_id) / 2, IDGT2 = (GT2 + cases_est_id) / 2)
-      #data <- tail(data, 20)
+      
+      # special case, need to be explained in paper. (202417 week cannot be fitted in RR)
+      if (uf == "RR" & epi_week) {
+        
+      }
       data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, gamma = gamma)
       data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, gamma = gamma)
       
@@ -201,6 +267,7 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
   }
   final_df
 }
+
 
 compare_Measurement <- function(data,
                                 num_of_models = 5, num_of_CI = 4,
@@ -337,7 +404,8 @@ get_Boxplot <- function(data,
                  values_to = "Difference") %>%
     mutate(Prediction = sub(paste0("^", prefix, "_"), "", Prediction),
            Prediction = factor(Prediction, levels = prediction_cols)) %>%
-    select(Prediction, Difference)
+    select(Prediction, Difference) %>%
+    filter(is.finite(Difference))
   
   # Order by Mean or model names
   if (order_by == "Mean") {
@@ -487,11 +555,12 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   
   # Round data
   metrics_df <- lapply(metrics_df, function(df){ df %>% mutate(across(where(is.numeric), ~ round(., 2)))})
-
-  # Remove specific columns from CR and WD (All NAs)
-  metrics_df$CR <- metrics_df$CR[, -c((num_of_CI + 1) : num_of_models)]
-  metrics_df$WD <- metrics_df$WD[, -c((num_of_CI + 1) : num_of_models)]
   
+  # Remove specific columns from CR and WD (All NAs)
+  # Here last two columns InfoDengue and Naive is removed
+  metrics_df$CR <- metrics_df$CR[, -c((num_of_CI ) : num_of_models)]
+  metrics_df$WD <- metrics_df$WD[, -c((num_of_CI ) : num_of_models)]
+
   if(latex_code){
     # Generate LaTeX tables
     latex_tables <- list()
@@ -518,14 +587,15 @@ create_latex_tables(real_time_list_2nd, brazil_states_full, num_of_CI = 3)
 model_preds_p <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive, uf) %>%
   rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
+head(model_preds_p)
 
 real_time_plot_1 <- list(); real_time_plot_2 <- list()
 count_p = 0
 # plots
 for (state in brazil_ufs) {
   count_p <- count_p + 1
-  if(state == "ES" | state == "RR"){next}
-  if(count_p <= 13){
+  if(state == "ES"){next}
+  if(count_p <= 27){
     real_time_plot_1[[state]] <- get_Boxplot(model_preds_p[which(model_preds_p$uf == state),-7], 
                                              x_lab = NULL, y_lab = expression(hat(c)[t] - c[t]),
                                              order_by = "Mean",
@@ -540,8 +610,20 @@ for (state in brazil_ufs) {
 
 library(gridExtra)
 
-grid.arrange(grobs = real_time_plot_1, ncol = 4)
+#States
+boxp <- grid.arrange(grobs = real_time_plot_1, ncol = 5)
+#BR
 grid.arrange(grobs = real_time_plot_2, ncol = 4)
+
+ggsave(
+  filename = "box_plot.png",           # file name
+  plot = boxp,                 # object to save
+  path = "/Users/xiaoy0a/Desktop/Task/Nowcasting/7. Slides/",  # save dir
+  width = 14,                        # width
+  height = 18,                        # height
+  units = "in",                      # size, "in", "cm", "mm"
+  dpi = 300                          # DPI
+)
 
 ###################### BR states MAP ######################
 library(ggplot2)
@@ -616,14 +698,14 @@ metrcis_plot <- function(metric_table){
   
   # Set specific rows to avoid the output being a list
   metric_table[c(8),] <- c(2, 2, 2, 1, 2)
-  metric_table[c(23),] <- c(2, 2, 2, 1, 2)
+  # metric_table[c(23),] <- c(2, 2, 2, 1, 2)
   
   # Find the column names with the minimum value for each row
   best_models <- apply(metric_table, 1, function(row) {
     colnames(metric_table)[which.min(row)]
   })
   best_models[8] <- "Non-comparable"
-  best_models[23] <- "Non-comparable"
+  # best_models[23] <- "Non-comparable"
   
   # Create a data frame with state names and corresponding models
   states_models <- data.frame(
