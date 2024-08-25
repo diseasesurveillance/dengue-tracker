@@ -169,7 +169,8 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
 
   final_df <- data.frame()
   ## Weeks to be considered
-  epi_weeks <- seq(202410, 202426, by = 1)
+  epi_weeks <- seq(202410, 202433, by = 1)
+  #epi_weeks <- seq(202426, 202433, by = 1)
 
   for(epi_week in epi_weeks){
 
@@ -178,6 +179,9 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
     if(epi_week == 202420) {
       K <- 5
     } else K <- K_true
+    if(epi_week == 202424) {
+      epi_week <- 202423
+    }
     # K_true should be larger than K
     if(epi_week > last(epi_weeks) - K_true) { break }
     
@@ -547,8 +551,10 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   
   # Fill data frames with the appropriate metrics
   for (state in brazil_states_full) {
+    if(state == "Brazil") {next}
     data <- real_time_list[[state]]
     for (metric in metrics) {
+      sprintf("%s, %s", metric, state)
       metrics_df[[metric]][state, ] <- data[[metric]]
     }
   }
@@ -687,6 +693,16 @@ ggplot(data = brazil_states) +
             aes(x = -38, y = centroid_lat, label = name), 
             color = "black", size = 4.5, hjust = -0.1) +  
   theme_minimal() +
+  theme(
+    panel.background = element_blank(),      # Remove background of the plot panel
+    panel.grid.major = element_blank(),       # Remove major grid lines
+    panel.grid.minor = element_blank(),       # Remove minor grid lines
+    plot.background = element_blank(),        # Remove background of the entire plot
+    axis.text = element_blank(),              # Remove axis text
+    axis.title = element_blank(),             # Remove axis titles
+    axis.ticks = element_blank(),             # Remove axis ticks
+    panel.border = element_blank()
+  )+
   labs(title = NULL, x = "Longitude", y = "Latitude")
 
 #################################################################
@@ -708,9 +724,10 @@ metrcis_plot <- function(metric_table){
   # best_models[23] <- "Non-comparable"
   
   # Create a data frame with state names and corresponding models
+  best_models$Brazil <- "Non-comparable"
   states_models <- data.frame(
     name = rownames(metric_table),
-    best_models = factor(best_models),
+    best_models = unlist(best_models, use.names = FALSE),
     stringsAsFactors = FALSE
   )
   
@@ -776,7 +793,7 @@ metrcis_plot <- function(metric_table){
     scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
                                  "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
                       name = "Best Model", 
-                      labels = c("DCGT" = "DC & GT")) +
+                      labels = c("DCGT" = "DCGT")) +
     theme_minimal() +
     labs(title = NULL, x = "Longitude", y = "Latitude") +
     theme(
@@ -789,8 +806,6 @@ metrcis_plot <- function(metric_table){
       axis.ticks = element_blank(),             # Remove axis ticks
       panel.border = element_blank()
     ) 
-  
-  p
 }
 
 # Use MAE data frame

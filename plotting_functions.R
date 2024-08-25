@@ -308,3 +308,70 @@ plot_geofacet_2 <- function(merged_data, states_map, K = 5) {
     facet_geo(~ uf, grid = "br_states_grid1", label = "name") +
     theme(strip.text = element_text(face="bold", size=11))
 }
+
+cr_plot_province_level_cloropleth <- function(data, year, month) {
+  cases <- data |>
+    filter(Year == year, Month == month)
+  
+  labelOptionss <- labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"), textsize = "15px", direction = "auto")
+  
+  pal <- colorNumeric("YlOrRd", domain = cases$cases)
+  labels <- sprintf("<strong> %s </strong> <br/> Cases: %s cases", cases$province, cases$cases) |>
+    lapply(htmltools::HTML)
+  
+  mapF <- st_as_sf(cases)
+  leaflet(mapF) |>
+    addTiles() |>
+    addPolygons(
+      fillColor = ~ pal(cases), layerId = ~province, group = "poly",
+      weight = 1, opacity = 1, color = "white", dashArray = "1", fillOpacity = 0.7,
+      label = labels, labelOptions = labelOptionss,
+      highlightOptions = highlightOptions(weight = 3, color = "gray", dashArray = "", fillOpacity = 0.7, bringToFront = FALSE)
+    ) |>
+    addLegend(pal = pal, values = ~cases, opacity = 0.7, position = "bottomright", title = "Estimated cases<br/>per 100k hab.") |>
+    addSearchFeatures(targetGroups = "poly", options = searchFeaturesOptions(zoom = 7, autoCollapse = TRUE, openPopup = TRUE))
+}
+
+
+cr_plot_cases_curve <- function(cases, province_to_plot) {
+  cases <- cases |>
+    mutate(date = as.Date(paste(Year, sprintf("%02d", Month), "01", 
+                                       sep = "-"))) |>
+    filter(province == province_to_plot)
+    
+  ggplot(cases) +
+    geom_line(aes(x=date,y = cases, group = 1, 
+                  colour = "Cases"),
+              size=1) +
+    labs(x = "",
+         y = "Number of weekly suspected cases") +
+    theme(axis.text.x = element_text(size=18), legend.text = element_text(size = 14),
+          legend.title = element_text( size = 16,face="bold"),
+          axis.title=element_text(size=18),plot.title = element_text(size=12))+
+    theme_bw() +
+    scale_x_date(date_labels = "%Y-%m", breaks = "3 year", minor_breaks = "6 month") +
+    scale_colour_manual("", 
+                        breaks = c("Cases"),
+                        values = c("Cases" = "#ffa600")) +
+    theme(legend.position = "top",
+          legend.key.size = unit(1.2,"line"),
+          legend.key.width= unit(2, 'line'),
+          legend.text=element_text(size=12),
+          axis.text.x = element_text(size = 12, angle = 45, colour = "black",
+                                     vjust = 1, hjust = 1), 
+          axis.title = element_text(size = 12), 
+          panel.grid.minor = element_blank(), 
+          axis.line = element_line(colour = "black"), 
+          panel.border = element_blank(), 
+          panel.grid.major.x = element_blank(), 
+          panel.grid.major.y = element_line(color = "gray79",
+                                            size = 0.25, 
+                                            linetype = 4),
+          strip.text = element_text(face = "bold"),
+          strip.background = element_blank(),
+          panel.spacing = unit(2, "lines"))+
+    coord_cartesian(expand = FALSE) +  
+    scale_y_continuous(labels = scales::comma)+
+    ggtitle(ifelse(province_to_plot == "Costa Rica", "Panel plot - Dengue in Costa Rica", 
+                   paste("Panel plot - Dengue in", province_to_plot, "(CR)")))
+}
