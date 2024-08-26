@@ -20,7 +20,7 @@ brazil_ufs <- c(
 merged_data <- data
 run_model_DCGT <- function(merged_data, topics, 
                            last_date = NULL,
-                           K = 5, gamma = 0.95){
+                           K = 4, gamma = 0.95){
   # set date
   if(is.null(last_date)){
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
@@ -162,27 +162,41 @@ run_model_DC <- function(merged_data, topics,
   forec_out
 }
 
-generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save = T,  gamma = 0.95){
+generate_Prediction <- function(ufs, K = 10, K_true = 10, compare_length = 1, save = T,  gamma = 0.95){
   
   # if(compare_length > K){
   #   stop("Error! The length of prediction to compare should be equal to /smaller than the prediction length(K)!")}
 
   final_df <- data.frame()
   ## Weeks to be considered
-  epi_weeks <- seq(202410, 202426, by = 1)
+  epi_weeks <- seq(202410, 202433, by = 1)
+<<<<<<< HEAD
+=======
+  #epi_weeks <- seq(202426, 202433, by = 1)
+>>>>>>> 9525765d8b67fbdddf3d609c95775aa061e5c845
 
   for(epi_week in epi_weeks){
+    if(epi_week + K > last(epi_weeks)){break}
 
+<<<<<<< HEAD
+=======
     ## Since we didn't get data from 202424, we will compare the results for
     ## 202420 with 202425
     if(epi_week == 202420) {
       K <- 5
     } else K <- K_true
+    if(epi_week == 202424) {
+      epi_week <- 202423
+    }
     # K_true should be larger than K
     if(epi_week > last(epi_weeks) - K_true) { break }
     
+>>>>>>> 9525765d8b67fbdddf3d609c95775aa061e5c845
     # 202424 is missing
-    if((epi_week+K) == 202424){K = K+1;  K_true = K_true+1}
+    if(epi_week == 202424){next}
+    if((epi_week+K) == 202424){K = K+1}else{
+      K = K_true
+    }
     ## Dates for training model
     ew_start_ <- get_date(week = as.numeric(substr(epi_week, 5, 6)), year = as.numeric(substr(epi_week, 1, 4)))
 
@@ -192,14 +206,13 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
     
     print(epi_week)
     for (uf in ufs) {
+      if(uf == "ES") { next }
       # out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
       # Get K_ture is to control the delay of weeks for the "true data". The default value is 4.
       out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = (epi_week_compare + K - K))
       data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
                                                          ew_start > (ew_start_ %m-% weeks(20))), 20)
-      if(uf == "ES") { next }
       # if(uf == "RR"){ next }
-      
       data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
         filter(ew_start <= ew_start_)
       data2 <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(2),
@@ -216,9 +229,10 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       if (uf == "RR" & epi_week) {
         
       }
-      data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = K, gamma = gamma)
-      data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = K, gamma = gamma)
-      
+      # K here is the delay to train, not the K in this function for validation
+      data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
+      data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
+
       merged_data <- merge(data_DCGT, data_DC, by=names(data_DCGT)[1:(ncol(data_DCGT) - 3)])
       #merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
       ## Naive is using the last week case as prediction
@@ -257,7 +271,6 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
       
       final_df <- rbind(final_df, merged_data)
     }
-    if((epi_week+K) == 202424){K = K-1; K_true = K_true-1} # Change back to 4
   }
   
   if (save) {
@@ -267,7 +280,6 @@ generate_Prediction <- function(ufs, K = 4, K_true = 4, compare_length = 1, save
   }
   final_df
 }
-
 
 compare_Measurement <- function(data,
                                 num_of_models = 5, num_of_CI = 4,
@@ -472,7 +484,7 @@ brazil_states_full <- c(
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins", "Brazil"
 )
 
-df <- generate_Prediction(brazil_ufs, K = 4, compare_length = 20, save = F)
+df <- generate_Prediction(brazil_ufs, K = 10, compare_length = 20, save = F)
 
 ## ERROR QUANTIFICATION
 temp <- df |>
@@ -547,8 +559,10 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   
   # Fill data frames with the appropriate metrics
   for (state in brazil_states_full) {
+    if(state == "Brazil") {next}
     data <- real_time_list[[state]]
     for (metric in metrics) {
+      sprintf("%s, %s", metric, state)
       metrics_df[[metric]][state, ] <- data[[metric]]
     }
   }
@@ -687,6 +701,16 @@ ggplot(data = brazil_states) +
             aes(x = -38, y = centroid_lat, label = name), 
             color = "black", size = 4.5, hjust = -0.1) +  
   theme_minimal() +
+  theme(
+    panel.background = element_blank(),      # Remove background of the plot panel
+    panel.grid.major = element_blank(),       # Remove major grid lines
+    panel.grid.minor = element_blank(),       # Remove minor grid lines
+    plot.background = element_blank(),        # Remove background of the entire plot
+    axis.text = element_blank(),              # Remove axis text
+    axis.title = element_blank(),             # Remove axis titles
+    axis.ticks = element_blank(),             # Remove axis ticks
+    panel.border = element_blank()
+  )+
   labs(title = NULL, x = "Longitude", y = "Latitude")
 
 #################################################################
@@ -708,9 +732,10 @@ metrcis_plot <- function(metric_table){
   # best_models[23] <- "Non-comparable"
   
   # Create a data frame with state names and corresponding models
+  best_models$Brazil <- "Non-comparable"
   states_models <- data.frame(
     name = rownames(metric_table),
-    best_models = factor(best_models),
+    best_models = unlist(best_models, use.names = FALSE),
     stringsAsFactors = FALSE
   )
   
@@ -776,7 +801,7 @@ metrcis_plot <- function(metric_table){
     scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
                                  "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
                       name = "Best Model", 
-                      labels = c("DCGT" = "DC & GT")) +
+                      labels = c("DCGT" = "DCGT")) +
     theme_minimal() +
     labs(title = NULL, x = "Longitude", y = "Latitude") +
     theme(
@@ -789,8 +814,6 @@ metrcis_plot <- function(metric_table){
       axis.ticks = element_blank(),             # Remove axis ticks
       panel.border = element_blank()
     ) 
-  
-  p
 }
 
 # Use MAE data frame

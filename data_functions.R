@@ -107,6 +107,7 @@ correct_all_country_data_bug <- function(brazil_ufs, ew) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
   data_ <- data.frame()
   for (uf in brazil_ufs) {
+    #if(uf == "ES") { next }
     filename <- sprintf("data/weekly_data/infodengue/%s/%s_%s_infodengue.csv", ew, uf, last_ew_start)
     infodengue_data <- read_csv(filename)
     data_ <- rbind(data_, infodengue_data)
@@ -290,8 +291,12 @@ generate_data <- function(ufs,
                           save = T) {
 
   final_df <- data.frame()
+
   for (uf in ufs) {
-    cat(last_ew_start, ew)
+<<<<<<< HEAD
+    # cat(last_ew_start, ew)
+=======
+>>>>>>> 9525765d8b67fbdddf3d609c95775aa061e5c845
     out <- process_data(uf, last_ew_start, ew = ew)
     data <- out[[1]]
     topics <- out[[2]][index_of_queries]
@@ -348,11 +353,11 @@ generate_data_all_country <- function(index_of_queries = c(1,2),
 
 
 render_files <- function(folder_root_directory = rprojroot::find_rstudio_root_file()) {
-  rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$", full.names = TRUE)
+  rmd_files <- list.files(path = "reports", pattern = "\\.Rmd$",
+                          full.names = TRUE, recursive = TRUE)
   for (file in rmd_files) {
     filename <- tools::file_path_sans_ext(basename(file))
-    setwd(folder_root_directory)
-    rmarkdown::render(input = file, output_file = paste0("../docs/", filename, ".html"))
+    rmarkdown::render(input = file, output_file = paste0(folder_root_directory, "/docs/", filename, ".html"))
   }
 }
 
@@ -445,7 +450,3 @@ get_lowest_maes <- function(brazil_ufs) {
 # 
 model_preds <- generate_data(brazil_ufs, gamma = 0.95, save=F)
 model_preds_br <- generate_data_all_country(gamma = 0.95, save=F)
-
-## experiment
-
-#lowest_maes <- get_lowest_maes(brazil_ufs)
