@@ -293,10 +293,8 @@ generate_data <- function(ufs,
   final_df <- data.frame()
 
   for (uf in ufs) {
-<<<<<<< HEAD
     # cat(last_ew_start, ew)
-=======
->>>>>>> 9525765d8b67fbdddf3d609c95775aa061e5c845
+
     out <- process_data(uf, last_ew_start, ew = ew)
     data <- out[[1]]
     topics <- out[[2]][index_of_queries]

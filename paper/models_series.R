@@ -39,7 +39,7 @@ run_model_DCGT <- function(merged_data, topics,
   fit <- tryCatch(
     {
       auto.arima(merged_data_temp_train$sum_of_cases, 
-                     xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
+                 xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
     },
     error = function(e) {
       return(NULL)
@@ -54,7 +54,7 @@ run_model_DCGT <- function(merged_data, topics,
       return(NULL)
     }
   )
-
+  
   
   if (is.null(fit) | is.null(forec)) {
     forec_out <- tibble(
@@ -92,8 +92,8 @@ run_model_DCGT <- function(merged_data, topics,
 }
 
 run_model_DC <- function(merged_data, topics, 
-                          last_date = NULL,
-                          K = 4, gamma = 0.95){
+                         last_date = NULL,
+                         K = 4, gamma = 0.95){
   # set date
   if(is.null(last_date)){
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
@@ -158,7 +158,7 @@ run_model_DC <- function(merged_data, topics,
                         DC_ub = as.numeric(forec$upper))
   }
   forec_out <- cbind(tail(merged_data, 20), forec_out)
-
+  
   forec_out
 }
 
@@ -166,32 +166,14 @@ generate_Prediction <- function(ufs, K = 10, K_true = 10, compare_length = 1, sa
   
   # if(compare_length > K){
   #   stop("Error! The length of prediction to compare should be equal to /smaller than the prediction length(K)!")}
-
+  
   final_df <- data.frame()
   ## Weeks to be considered
   epi_weeks <- seq(202410, 202433, by = 1)
-<<<<<<< HEAD
-=======
-  #epi_weeks <- seq(202426, 202433, by = 1)
->>>>>>> 9525765d8b67fbdddf3d609c95775aa061e5c845
-
+  
   for(epi_week in epi_weeks){
     if(epi_week + K > last(epi_weeks)){break}
-
-<<<<<<< HEAD
-=======
-    ## Since we didn't get data from 202424, we will compare the results for
-    ## 202420 with 202425
-    if(epi_week == 202420) {
-      K <- 5
-    } else K <- K_true
-    if(epi_week == 202424) {
-      epi_week <- 202423
-    }
-    # K_true should be larger than K
-    if(epi_week > last(epi_weeks) - K_true) { break }
     
->>>>>>> 9525765d8b67fbdddf3d609c95775aa061e5c845
     # 202424 is missing
     if(epi_week == 202424){next}
     if((epi_week+K) == 202424){K = K+1}else{
@@ -199,7 +181,7 @@ generate_Prediction <- function(ufs, K = 10, K_true = 10, compare_length = 1, sa
     }
     ## Dates for training model
     ew_start_ <- get_date(week = as.numeric(substr(epi_week, 5, 6)), year = as.numeric(substr(epi_week, 1, 4)))
-
+    
     ## Dates for filtering data to compare
     ew_start_compare <- ew_start_ %m+% weeks(K)
     epi_week_compare <- epi_week + K
@@ -232,7 +214,7 @@ generate_Prediction <- function(ufs, K = 10, K_true = 10, compare_length = 1, sa
       # K here is the delay to train, not the K in this function for validation
       data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
       data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
-
+      
       merged_data <- merge(data_DCGT, data_DC, by=names(data_DCGT)[1:(ncol(data_DCGT) - 3)])
       #merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
       ## Naive is using the last week case as prediction
@@ -499,8 +481,8 @@ model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cas
   as.data.frame()
 
 model_preds_metrics_2nd <- temp %>% select(True, prediction, GT2, cases_est_id, IDGT, IDGT2,
-                                       GT_CoverageRate, GT2_CoverageRate, ID_CoverageRate,
-                                       GT_CI_WD, GT2_CI_WD, ID_CI_WD, uf) %>%
+                                           GT_CoverageRate, GT2_CoverageRate, ID_CoverageRate,
+                                           GT_CI_WD, GT2_CI_WD, ID_CI_WD, uf) %>%
   rename(Real_value = True, GT = prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
 
@@ -509,10 +491,10 @@ real_time_list <- list(); real_time_list_2nd <- list()
 count <- 1
 for (state in brazil_ufs) {
   real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(model_preds_metrics$uf == state),], 
-                                                 relative_to_naive = F)
+                                                                     relative_to_naive = F)
   real_time_list_2nd[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics_2nd[which(model_preds_metrics_2nd$uf == state),],
-                                                                        num_of_models = 5, num_of_CI = 3,
-                                                                        relative_to_naive = F)
+                                                                         num_of_models = 5, num_of_CI = 3,
+                                                                         relative_to_naive = F)
   count <- count + 1
 }
 
@@ -574,7 +556,7 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   # Here last two columns InfoDengue and Naive is removed
   metrics_df$CR <- metrics_df$CR[, -c((num_of_CI ) : num_of_models)]
   metrics_df$WD <- metrics_df$WD[, -c((num_of_CI ) : num_of_models)]
-
+  
   if(latex_code){
     # Generate LaTeX tables
     latex_tables <- list()
