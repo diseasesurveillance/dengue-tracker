@@ -473,6 +473,9 @@ temp <- df |>
   group_by(ew_pred, uf) |>
   filter(ew == max(ew)) |>
   ungroup()
+
+# to avoid Inf
+temp$Naive  <- ifelse(temp$Naive == 0, 1, temp$Naive )
 ########### get metrics table ###########
 model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive,
                                        DCGT_CoverageRate, DC_CoverageRate, GT_CoverageRate, ID_CoverageRate,

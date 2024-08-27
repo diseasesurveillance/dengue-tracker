@@ -191,42 +191,42 @@ process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
   return(list(as_tibble(merged_data), topics))
 }
 
-
-run_model <- function(merged_data, topics, gamma, K = 4) {
-  if (unique(merged_data$uf == "RR")) topics <- c("dengue")
-  formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
-  best_linear_transform <- lm(
-    as.formula(formula_str),
-    merged_data[1:(nrow(merged_data) - K), ]
-  )
-  prediction <- predict(best_linear_transform, merged_data)
-
-  best_linear_transform_lower <- rq(as.formula(formula_str),
-    merged_data[1:(nrow(merged_data) - K), ],
-    tau = (1 - gamma) / 2
-  )
-
-  prediction_lower <- predict(best_linear_transform_lower, merged_data)
-
-  best_linear_transform_upper <- rq(as.formula(formula_str),
-    merged_data[1:(nrow(merged_data) - K), ],
-    tau = 1 - (1 - gamma) / 2
-  )
-  prediction_upper <- predict(best_linear_transform_upper, merged_data)
-
-  error <-
-    apply(cbind(
-      prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
-      merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
-    ), 1, max)
-
-  quantile_error <- quantile(error, probs = gamma, na.rm = T)
-  merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
-  merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
-  merged_data$prediction <- pmax(prediction, 0)
-
-  return(merged_data)
-}
+# function for best trans
+# run_model <- function(merged_data, topics, gamma, K = 4) {
+#   if (unique(merged_data$uf == "RR")) topics <- c("dengue")
+#   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
+#   best_linear_transform <- lm(
+#     as.formula(formula_str),
+#     merged_data[1:(nrow(merged_data) - K), ]
+#   )
+#   prediction <- predict(best_linear_transform, merged_data)
+# 
+#   best_linear_transform_lower <- rq(as.formula(formula_str),
+#     merged_data[1:(nrow(merged_data) - K), ],
+#     tau = (1 - gamma) / 2
+#   )
+# 
+#   prediction_lower <- predict(best_linear_transform_lower, merged_data)
+# 
+#   best_linear_transform_upper <- rq(as.formula(formula_str),
+#     merged_data[1:(nrow(merged_data) - K), ],
+#     tau = 1 - (1 - gamma) / 2
+#   )
+#   prediction_upper <- predict(best_linear_transform_upper, merged_data)
+# 
+#   error <-
+#     apply(cbind(
+#       prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
+#       merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
+#     ), 1, max)
+# 
+#   quantile_error <- quantile(error, probs = gamma, na.rm = T)
+#   merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
+#   merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
+#   merged_data$prediction <- pmax(prediction, 0)
+# 
+#   return(merged_data)
+# }
 
 # CQR
 # before change on (July 9th)
