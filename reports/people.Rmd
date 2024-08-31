@@ -61,20 +61,6 @@ width: 180px;
 <a href="https://github.com/lsbastos">Leo Bastos <br> Fiocruz</a>
 </td>
 </tr>
-<tr>
-<td align="center">
-<a href="https://github.com/manjago85">
-<img src="https://avatars.githubusercontent.com/u/17789753?v=4" alt=""/>
-</a><br>
-<a href="https://github.com/manjago85">Mario Gómez <br> University of Costa Rica</a>
-</td>
-<td align="center">
-<a href="https://github.com/luisbarboza27">
-<img src="https://avatars.githubusercontent.com/u/41637973?v=4" alt=""/>
-</a><br>
-<a href="https://github.com/luisbarboza27">Luis Barboza <br> University of Costa Rica</a>
-</td>
-</tr>
 
 </table>
 
@@ -92,7 +78,6 @@ infomap <- rbind(
 c("KAUST", "https://www.kaust.edu.sa/en/", 22.309762465865283, 39.104654804328575),
 c("Fiocruz", "https://www.fiocruz.br/", -22.876183395998915, -43.24384757672307),
 c("University of São Paulo", "https://www5.usp.br/", -23.55168476190895, -46.730838093337766),
-c("University of Costa Rica", "https://www.ucr.ac.cr/", 9.991181693645125, -84.10140008882803),
 c("Federal University of São Carlos", "https://www.ufscar.br/", -21.984790095827584, -47.881408353973406)
 )
 
