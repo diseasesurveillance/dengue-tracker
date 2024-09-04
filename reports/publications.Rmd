@@ -1,0 +1,17 @@
+---
+title: "Publications"
+---
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+# Preprint (under review)
+
+**Dengue nowcasting in Brazil by combining official surveillance data and Google Trends information**  
+Yang Xiao, Guilherme Soares, Leonardo Bastos, Rafael Izbicki, Paula Moraga  
+*Link*: https://www.medrxiv.org/content/10.1101/2024.09.02.24312934v1 
+
+*Abstract*:  
+Dengue is a mosquito-borne viral disease that poses significant public health challenges in tropical and sub-tropical regions worldwide. Surveillance systems are essential for dengue prevention and control. However, traditional systems often rely on delayed data, limiting their effectiveness. To address this, nowcasting methods are needed to estimate underreported cases, enabling more timely decision-making.  This study evaluates the value of using Google Trends indices of dengue-related keywords to complement official dengue data for nowcasting dengue in Brazil, a country frequently affected by this disease. We compare various nowcasting approaches that incorporate autoregressive features from official dengue cases, Google Trends data, and a combination of both, using a naive approach as a baseline. The performance of these methods is evaluated by nowcasting weekly dengue cases from March to June 2024 across Brazilian states. Error measures and 95\% coverage probabilities reveal that models incorporating Google Trends data enhance the accuracy of weekly nowcasts across states and offer valuable insights into dengue activity levels. To support real-time decision-making, we also present Dengue Tracker, a website that displays weekly dengue nowcasts and trends to inform both decision-makers and the public, improving situational awareness of dengue activity. In conclusion, the study demonstrates the value of digital data sources in enhancing dengue nowcasting, and emphasizes the value of integrating alternative data streams into traditional surveillance systems for better-informed decision-making.
+
+
+

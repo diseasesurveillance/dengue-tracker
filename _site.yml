@@ -62,6 +62,8 @@ navbar:
         href: dengue-report-28.html
       - text: "Tocantins"
         href: dengue-report-17.html
+    - text: "Publications"
+      href: publications.html
     - text: "About"
       href: about.html
     - text: "People"
