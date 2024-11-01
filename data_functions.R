@@ -20,9 +20,16 @@ library(denguetracker)
 states_map <- geobr::read_state(showProgress = F)
 
 brazil_ufs <- c(
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
-  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
-  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+  "AC", "AL", "AP",
+  "AM",
+  "BA", "CE", "DF", "ES",
+  "GO",
+  "MA", "MT", "MS", "MG", "PA",
+  "PB", "PR", "PE",
+  "PI",
+  "RJ", "RN", "RS", "RO", "RR",
+  "SC",
+  "SP", "SE", "TO"
 )
 
 population_state <- read_csv2("data/population_state.csv") |>
@@ -90,6 +97,7 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
 
 download_infodengue_data_by_city <- function(brazil_ufs) {
   last_ew_start <- Sys.Date() - wday(Sys.Date()) + 1
+
   for (uf in brazil_ufs) {
     infodengue_data <- denguetracker::fetch_data_from_cities(uf,
                                                             ey_start = 2018,
@@ -192,81 +200,6 @@ process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
 }
 
 # function for best trans
-# run_model <- function(merged_data, topics, gamma, K = 4) {
-#   if (unique(merged_data$uf == "RR")) topics <- c("dengue")
-#   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
-#   best_linear_transform <- lm(
-#     as.formula(formula_str),
-#     merged_data[1:(nrow(merged_data) - K), ]
-#   )
-#   prediction <- predict(best_linear_transform, merged_data)
-# 
-#   best_linear_transform_lower <- rq(as.formula(formula_str),
-#     merged_data[1:(nrow(merged_data) - K), ],
-#     tau = (1 - gamma) / 2
-#   )
-# 
-#   prediction_lower <- predict(best_linear_transform_lower, merged_data)
-# 
-#   best_linear_transform_upper <- rq(as.formula(formula_str),
-#     merged_data[1:(nrow(merged_data) - K), ],
-#     tau = 1 - (1 - gamma) / 2
-#   )
-#   prediction_upper <- predict(best_linear_transform_upper, merged_data)
-# 
-#   error <-
-#     apply(cbind(
-#       prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
-#       merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
-#     ), 1, max)
-# 
-#   quantile_error <- quantile(error, probs = gamma, na.rm = T)
-#   merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
-#   merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
-#   merged_data$prediction <- pmax(prediction, 0)
-# 
-#   return(merged_data)
-# }
-
-# CQR
-# before change on (July 9th)
-# run_model_variables <- function(merged_data, topics, gamma=0.95, K = 5) {
-#   formula_str <- paste("sum_of_cases ~ meantemp_mean + meanumid_mean + inc_level + transmission + receptive + ",
-#                        paste(topics, collapse = " + "))
-#   best_linear_transform <- lm(
-#     as.formula(formula_str),
-#     merged_data[1:(nrow(merged_data) - K), ]
-#   )
-#   prediction <- predict(best_linear_transform, merged_data)
-#   
-#   best_linear_transform_lower <- rq(as.formula(formula_str),
-#                                     merged_data[1:(nrow(merged_data) - K), ],
-#                                     tau = (1 - gamma) / 2
-#   )
-#   
-#   prediction_lower <- predict(best_linear_transform_lower, merged_data)
-#   
-#   best_linear_transform_upper <- rq(as.formula(formula_str),
-#                                     merged_data[1:(nrow(merged_data) - K), ],
-#                                     tau = 1 - (1 - gamma) / 2
-#   )
-#   prediction_upper <- predict(best_linear_transform_upper, merged_data)
-#   
-#   error <-
-#     apply(cbind(
-#       prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
-#       merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
-#     ), 1, max)
-#   
-#   quantile_error <- quantile(error, probs = gamma, na.rm = T)
-#   merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
-#   merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
-#   merged_data$prediction <- pmax(prediction, 0)
-#   
-#   return(merged_data)   
-# }
-
-
 run_model <- function(merged_data, topics, gamma, K = 4) {
   if (unique(merged_data$uf == "RR")) topics <- c("dengue")
   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
@@ -274,27 +207,99 @@ run_model <- function(merged_data, topics, gamma, K = 4) {
     as.formula(formula_str),
     merged_data[1:(nrow(merged_data) - K), ]
   )
-  prediction <- predict(best_linear_transform, merged_data, interval = "predict")
-  
-  merged_data$lwr <- pmax(as.numeric(prediction[,2]), 0)
-  merged_data$upr <- pmax(as.numeric(prediction[,3]), 0)
-  merged_data$prediction <- pmax(as.numeric(prediction[,1]), 0)
-  
+  prediction <- predict(best_linear_transform, merged_data)
+
+  best_linear_transform_lower <- rq(as.formula(formula_str),
+    merged_data[1:(nrow(merged_data) - K), ],
+    tau = (1 - gamma) / 2
+  )
+
+  prediction_lower <- predict(best_linear_transform_lower, merged_data)
+
+  best_linear_transform_upper <- rq(as.formula(formula_str),
+    merged_data[1:(nrow(merged_data) - K), ],
+    tau = 1 - (1 - gamma) / 2
+  )
+  prediction_upper <- predict(best_linear_transform_upper, merged_data)
+
+  error <-
+    apply(cbind(
+      prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
+      merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
+    ), 1, max)
+
+  quantile_error <- quantile(error, probs = gamma, na.rm = T)
+  merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
+  merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
+  merged_data$prediction <- pmax(prediction, 0)
+
   return(merged_data)
 }
+
+# CQR
+# before change on (July 9th)
+run_model_variables <- function(merged_data, topics, gamma=0.95, K = 5) {
+  formula_str <- paste("sum_of_cases ~ meantemp_mean + meanumid_mean + inc_level + transmission + receptive + ",
+                       paste(topics, collapse = " + "))
+  best_linear_transform <- lm(
+    as.formula(formula_str),
+    merged_data[1:(nrow(merged_data) - K), ]
+  )
+  prediction <- predict(best_linear_transform, merged_data)
+
+  best_linear_transform_lower <- rq(as.formula(formula_str),
+                                    merged_data[1:(nrow(merged_data) - K), ],
+                                    tau = (1 - gamma) / 2
+  )
+
+  prediction_lower <- predict(best_linear_transform_lower, merged_data)
+
+  best_linear_transform_upper <- rq(as.formula(formula_str),
+                                    merged_data[1:(nrow(merged_data) - K), ],
+                                    tau = 1 - (1 - gamma) / 2
+  )
+  prediction_upper <- predict(best_linear_transform_upper, merged_data)
+
+  error <-
+    apply(cbind(
+      prediction_lower[1:(nrow(merged_data) - K)] - merged_data$sum_of_cases[1:(nrow(merged_data) - K)],
+      merged_data$sum_of_cases[1:(nrow(merged_data) - K)] - prediction_upper[1:(nrow(merged_data) - K)]
+    ), 1, max)
+
+  quantile_error <- quantile(error, probs = gamma, na.rm = T)
+  merged_data$lwr <- pmax(prediction_lower - quantile_error, 0)
+  merged_data$upr <- pmax(prediction_upper + quantile_error, 0)
+  merged_data$prediction <- pmax(prediction, 0)
+
+  return(merged_data)
+}
+
+
+# run_model <- function(merged_data, topics, gamma, K = 4) {
+#   if (unique(merged_data$uf == "RR")) topics <- c("dengue")
+#   formula_str <- paste("sum_of_cases ~ ", paste(topics, collapse = " + "))
+#   best_linear_transform <- lm(
+#     as.formula(formula_str),
+#     merged_data[1:(nrow(merged_data) - K), ]
+#   )
+#   prediction <- predict(best_linear_transform, merged_data, interval = "predict")
+# 
+#   merged_data$lwr <- pmax(as.numeric(prediction[,2]), 0)
+#   merged_data$upr <- pmax(as.numeric(prediction[,3]), 0)
+#   merged_data$prediction <- pmax(as.numeric(prediction[,1]), 0)
+# 
+#   return(merged_data)
+# }
 
 generate_data <- function(ufs,
                           last_ew_start = Sys.Date() - wday(Sys.Date()) + 1,
                           ew = NULL,
                           index_of_queries = c(1,2),
                           gamma = 0.95,
-                          save = T) {
-
+                          save = F) {
   final_df <- data.frame()
-
   for (uf in ufs) {
-    # cat(last_ew_start, ew)
-
+    #cat(last_ew_start, ew)
     out <- process_data(uf, last_ew_start, ew = ew)
     data <- out[[1]]
     topics <- out[[2]][index_of_queries]
@@ -359,90 +364,6 @@ render_files <- function(folder_root_directory = rprojroot::find_rstudio_root_fi
   }
 }
 
-
-get_lowest_maes <- function(brazil_ufs) {
-  lowest_maes <- tibble(uf = character(), decays = character(), MAE = numeric())
-  model_preds <- generate_data(brazil_ufs, gamma = 0.95, save=F)
-
-  for (UF in brazil_ufs) {
-  
-    data <- model_preds |>
-      filter(uf==UF) |>
-      select(ew_start, ew, sum_of_cases, dengue, sintomas.dengue, cases_est_id, prediction)
-    
-    decay_models <- c("1+log(100/nrow(data):1)",
-                      "0.9^sqrt(nrow(data):1)",
-                      "1/exp(sqrt(nrow(data):1))",
-                      "0.5^sqrt(nrow(data):1)",
-                      "1/1.5^sqrt(nrow(data):1)",
-                      "None")
-    
-    mae_decays <- numeric(length(decay_models))
-    
-    models_coefs <- vector("list", length = length(decay_models))
-    
-    K <- 4
-    
-    decay_id <- 1
-    for (decay in decay_models) {
-      expr <- parse(text = decay)
-      
-      if (expr != "None") data$weights <- eval(expr)
-      horizon <- 12
-      mae <- numeric(nrow(data) - K - horizon)
-      intercep <- numeric(nrow(data) - K - horizon)
-      dengue <- numeric(nrow(data) - K - horizon)
-      sintomas.dengue <- numeric(nrow(data) - K - horizon)
-      
-      for (model_id in 1:(nrow(data) - horizon - K)) {
-        serie <- data[1:horizon,]
-        if (expr == "None") weights <- NULL
-        fit <- lm(
-          sum_of_cases ~ dengue + sintomas.dengue,
-          serie,
-          weights = weights
-        )
-        intercep[model_id] <- fit$coefficients[1]
-        dengue[model_id] <- fit$coefficients[2]
-        sintomas.dengue[model_id] <- fit$coefficients[3]
-        
-        data_to_predict <- data[1:(horizon+K),]
-        prediction <- predict(fit, data_to_predict)
-        mae[model_id] <- mean(abs(tail(prediction, 4) - tail(data_to_predict, 4)$sum_of_cases))
-        
-        model_id <- model_id + 1
-        horizon <- horizon + 1
-      }
-      ## Saving each model coefficients
-      results <- tibble(
-        model_id = (1:(nrow(data) - 12 - K)),
-        MAE = mae,
-        intercep = intercep,
-        dengue.coef = dengue,
-        sintomas.coef = sintomas.dengue
-      )
-      
-      models_coefs[[decay_id]] <- results
-      
-      ## Evaluating different decays
-      mae_decays[decay_id] <- mean(mae)
-      
-      decay_id <- decay_id + 1
-    }
-    
-    results <- tibble(
-      decays = decay_models,
-      MAE = mae_decays
-    )
-    
-    lwst <- results |> arrange(MAE)
-    lwst <- lwst[1, ]
-    
-    lowest_maes <- bind_rows(lowest_maes, tibble(uf = UF, decays = lwst$decays, MAE = lwst$MAE))
-  }
-  
-  lowest_maes
-}
 
 ## Variables
 # 
