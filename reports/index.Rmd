@@ -41,7 +41,7 @@ state_level_cloropleth(model_preds, states_map)
  
 <br>
 
-### Time series for each state (from 2024 onwards)
+### Time series for each state (from 06/2024 onwards)
 
 <style>
 .html-widget {

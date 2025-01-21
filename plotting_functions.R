@@ -212,8 +212,8 @@ plot_trends_data <- function(merged_data, uf, K = 5) {
 
 
 plot_geofacet <- function(merged_data, K = 5) {
-  data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
-  data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
+  data <- merged_data |> filter(ew_start >= as.Date("2024-01-01"))
+  data$day <- as.Date(format(data$ew_start,"%d/%m/%y"), "%d/%m/%y")
   date_no_delay <- data[nrow(data) - K, ]$ew_start
   
   ggplot(data) +
