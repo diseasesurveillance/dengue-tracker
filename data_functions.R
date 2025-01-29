@@ -25,7 +25,8 @@ brazil_ufs <- c(
   "BA", "CE", "DF", "ES",
   "GO",
   "MA", "MT", "MS", "MG", "PA",
-  "PB", "PR", "PE",
+  "PB",
+  "PR", "PE",
   "PI",
   "RJ", "RN", "RS", "RO", "RR",
   "SC",
@@ -69,7 +70,7 @@ download_infodengue_data_by_state <- function(brazil_ufs) {
   for (uf in brazil_ufs) {
     infodengue_data <- denguetracker::fetch_data_from_state(uf,
       ey_start = 2018,
-      ey_end = 2024
+      ey_end = 2025
     )
 
     filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
@@ -101,7 +102,7 @@ download_infodengue_data_by_city <- function(brazil_ufs) {
   for (uf in brazil_ufs) {
     infodengue_data <- denguetracker::fetch_data_from_cities(uf,
                                                             ey_start = 2018,
-                                                            ey_end = 2024
+                                                            ey_end = 2025
     )
     filename <- sprintf("%s_%s_infodengue.csv", uf, last_ew_start)
     ew <- max(infodengue_data$ew)
