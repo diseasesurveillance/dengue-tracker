@@ -20,16 +20,12 @@ library(denguetracker)
 states_map <- geobr::read_state(showProgress = F)
 
 brazil_ufs <- c(
-  "AC", "AL", "AP",
-  "AM",
+  "AC", "AL", "AP", "AM",
   "BA", "CE", "DF", "ES",
-  "GO",
-  "MA", "MT", "MS", "MG", "PA",
-  "PB",
-  "PR", "PE",
-  "PI",
-  "RJ", "RN", "RS", "RO", "RR",
-  "SC",
+  "GO", "MA", "MT", "MS",
+  "MG", "PA", "PB", "PR",
+  "PE", "PI", "RJ", "RN",
+  "RS", "RO", "RR", "SC",
   "SP", "SE", "TO"
 )
 
@@ -133,27 +129,7 @@ correct_all_country_data_bug <- function(brazil_ufs, ew) {
   cat("\nSuccessfully saved ", filename, "\n")
 }
 
-
-read_indep_covariates <- function(dir_path, uf, ew) {
-  keywords <- c("dengue", "sintomas")
-  trends <- data.frame()
-  
-  for (kw in keywords) {
-    gt_filename <- sprintf(
-      "data/weekly_data/gtrends/%s/independent_terms/%s_%s.csv", ew, uf, kw
-    )
-    trends_ <- read.csv(gt_filename, stringsAsFactors = FALSE, skip = 2)
-    colnames(trends_) <- gsub("\\.{3}.*$", "", colnames(trends_))
-    colnames(trends_)[colnames(trends_) == "Semana"] <- "Week"
-    
-    trends <- if(nrow(trends) == 0) trends_ else merge(trends, trends_, by = "Week")
-  }
-  
-  trends
-}
-
-
-process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
+process_data <- function(uf, last_ew_start, ew = NULL) {
   dir_path <- "data/weekly_data/infodengue"
   dirs <- list.dirs(dir_path, full.names=T)
   if (is.null(ew)) ew <- max(gsub(".*/(\\d+)$", "\\1", gsub("/city", "", dirs))[-1])
@@ -166,8 +142,6 @@ process_data <- function(uf, last_ew_start, ew = NULL, indep_cov=F) {
 
   colnames(trends) <- gsub("\\.{3}.*$", "", colnames(trends))
   colnames(trends)[colnames(trends) == "Semana"] <- "Week"
-
-  if(indep_cov) trends <- read_indep_covariates(dir_path, uf, ew)
 
   min_week <- min(trends$Week)
 
