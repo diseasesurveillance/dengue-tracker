@@ -344,3 +344,4 @@ render_files <- function(folder_root_directory = rprojroot::find_rstudio_root_fi
 # 
 model_preds <- generate_data(brazil_ufs, gamma = 0.95, save=F)
 model_preds_br <- generate_data_all_country(gamma = 0.95, save=F)
+0.0385*(834.49+407.49) + 0.1151*(492.5+384.5) + 0.2308*(358+94.99+94)

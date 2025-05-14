@@ -214,7 +214,7 @@ generate_Prediction <- function(ufs, K = 10, K_true = 10, compare_length = 1, sa
       # K here is the delay to train, not the K in this function for validation
       data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
       data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
-       
+      
       merged_data <- merge(data_DCGT, data_DC, by=names(data_DCGT)[1:(ncol(data_DCGT) - 3)])
       #merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
       ## Naive is using the last week case as prediction
