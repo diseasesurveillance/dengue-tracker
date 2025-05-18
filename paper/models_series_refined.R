@@ -6,9 +6,12 @@ library(forecast)
 library(tidyverse)
 library(xtable)
 
+#remotes::install_github("thfuchs/tsRNN")
+
 #setwd('/Users/xiaoy0a/Desktop/GitHub/Dengue/dengue-tracker/')
 
 source("data_functions.R")
+source("paper/helper_functions.R")
 aweek::set_week_start("Sunday")
 
 brazil_ufs <- c(
@@ -162,106 +165,135 @@ run_model_DC <- function(merged_data, topics,
   forec_out
 }
 
-generate_Prediction <- function(ufs, K = 10, K_true = 10, compare_length = 1, save = T,  gamma = 0.95){
-  
-  # if(compare_length > K){
-  #   stop("Error! The length of prediction to compare should be equal to /smaller than the prediction length(K)!")}
-  
+generate_Prediction <- function(ufs, K = 10, compare_length = 1, save = TRUE, gamma = 0.95) {
   final_df <- data.frame()
-  ## Weeks to be considered
-  epi_weeks <- seq(202410, 202452, by = 1)
+  epi_weeks <- c(seq(202410, 202452, by = 1), seq(202501, 202518, by = 1))
   
-  for(epi_week in epi_weeks){
-    if(epi_week + K > last(epi_weeks)){break}
+  for (epi_week in epi_weeks) {
+    if (epi_week + K > last(epi_weeks)) break
+    if (epi_week == 202424) next
+    if((epi_week+K) == 202424){K = K+1}
     
-    # 202424 is missing
-    if(epi_week == 202424){next}
-    if((epi_week+K) == 202424){K = K+1}else{
-      K = K_true
+    # Determine look-ahead, skip missing week
+    K_use <- K
+    if (epi_week + K_use == 202424) {
+      K_use <- K_use + 1
     }
-    ## Dates for training model
-    ew_start_ <- get_date(week = as.numeric(substr(epi_week, 5, 6)), year = as.numeric(substr(epi_week, 1, 4)))
     
-    ## Dates for filtering data to compare
-    ew_start_compare <- ew_start_ %m+% weeks(K)
-    epi_week_compare <- epi_week + K
-    
+    # Convert epi-week code to date
+    ew_start_ <- get_date(
+      week = as.numeric(substr(epi_week, 5, 6)),
+      year = as.numeric(substr(epi_week, 1, 4))
+    )
+    ew_start_compare <- ew_start_ %m+% weeks(K_use)
+    epi_week_compare <- epi_week + K_use
     print(epi_week)
+    
     for (uf in ufs) {
-      if(uf == "ES") { next }
-      # out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = epi_week_compare)
-      # Get K_ture is to control the delay of weeks for the "true data". The default value is 4.
-      out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), ew = (epi_week_compare + K - K))
-      data_compare <- tail(out_compare[[1]] %>% filter(ew_start <=(ew_start_) &
-                                                         ew_start > (ew_start_ %m-% weeks(20))), 20)
-      # if(uf == "RR"){ next }
-      data <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), ew = epi_week, save=F) |> 
-        filter(ew_start <= ew_start_)
-      data2 <- generate_data(uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(2),
-                             ew = epi_week, save=F) |> 
-        filter(ew_start <= ew_start_)
+      if (uf == "ES") next
+      
+      # Prepare true-case comparison data
+      out_compare <- process_data(uf, ew_start_ %m+% weeks(K + 1), 
+                                  ew = as.numeric(normalize_ew(ew_start_ %m+% weeks(K))))
+      data_compare <- tail(
+        out_compare[[1]] %>%
+          filter(
+            ew_start <= ew_start_,
+            ew_start > (ew_start_ %m-% weeks(20))
+          ),
+        20
+      )
+      
+      # Generate nowcasting inputs
+      data  <- generate_data(
+        uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(1, 2),
+        ew = epi_week, save = FALSE
+      ) %>% filter(ew_start <= ew_start_)
+      
+      # Deduplicate for BR
       if (uf == "BR") {
-        data <- data |> unique()
-        data2 <- data2 |> unique()
+        data  <- unique(data)
       }
-      data <- data %>% mutate(lwr2 = data2$lwr, upr2 = data2$upr, GT2 = data2$prediction,
-                              IDGT = (prediction + cases_est_id) / 2, IDGT2 = (GT2 + cases_est_id) / 2)
       
-      # special case, need to be explained in paper. (202417 week cannot be fitted in RR)
-      if (uf == "RR" & epi_week) {
-        
-      }
-      # K here is the delay to train, not the K in this function for validation
-      data_DCGT <- run_model_DCGT(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
-      data_DC <- run_model_DC(data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma)
+      # Merge GT query results
+      data <- data %>% mutate(
+        lwr2 = data$lwr,
+        upr2 = data$upr,
+        GT2  = data$prediction,
+        IDGT  = (prediction + cases_est_id) / 2,
+        IDGT2 = (GT2 + cases_est_id) / 2
+      )
       
-      merged_data <- merge(data_DCGT, data_DC, by=names(data_DCGT)[1:(ncol(data_DCGT) - 3)])
-      #merged_data[nrow(merged_data), "ew"] <- max(merged_data$ew, na.rm=T) + 1
-      ## Naive is using the last week case as prediction
-      # Naive <- tail(data %>% filter(ew_start <= ew_start_ %m-% weeks(K)
-      #                               & ew_start >= (ew_start_ %m-% weeks(2*K))), K)
+      # Run delay-correction models
+      data_DCGT <- run_model_DCGT(
+        data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma
+        #data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
+      )
+      data_DC   <- run_model_DC(
+        data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma
+        # data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
+      )
       
-      # ew_pred is the week that we do this prediction
-      out <- tibble(ew_start = data_compare$ew_start, ew_pred = epi_week+1,
-                    True = data_compare$sum_of_cases)
-      
-      merged_data <- tail(merge(merged_data, out, by = "ew_start"), compare_length) #|>
-      #filter(ew == max(merged_data$ew))
+      # Merge model outputs and true values
+      merged_data <- merge(
+        data_DCGT, data_DC,
+        by = names(data_DCGT)[1:(ncol(data_DCGT) - 3)]
+      )
+      out <- tibble(
+        ew_start = data_compare$ew_start,
+        ew_pred  = epi_week + 1,
+        True     = data_compare$sum_of_cases
+      )
+      merged_data <- tail(merge(merged_data, out, by = "ew_start"), compare_length)
       merged_data$uf <- uf
       
-      merged_data <- merged_data |> select(c("ew_start", "ew", "sum_of_cases", "cases_est_id", "cases_est_id_min",
-                                             "cases_est_id_max", "dengue", "sintomas.dengue", "uf", 
-                                             "lwr", "upr", "prediction", "lwr2", "upr2", "GT2", "IDGT", "IDGT2",  
-                                             "DCGT_pred", "DCGT_lb", "DCGT_ub",   
-                                             "DC_pred", "DC_lb","DC_ub" ,"ew_pred","True")) |>
-        mutate(DCGT_CoverageRate = ifelse(True > DCGT_lb & True < DCGT_ub, TRUE, FALSE),
-               DC_CoverageRate = ifelse(True > DC_lb & True < DC_ub, TRUE, FALSE),
-               GT_CoverageRate = ifelse(True > lwr & True < upr, TRUE, FALSE),
-               GT2_CoverageRate = ifelse(True > lwr2 & True < upr2, TRUE, FALSE),
-               ID_CoverageRate = ifelse(True > cases_est_id_min & True < cases_est_id_max, TRUE, FALSE),
-               DCGT_CI_WD = DCGT_ub - DCGT_lb,
-               DC_CI_WD = DC_ub - DC_lb,
-               GT_CI_WD = upr - lwr,
-               GT2_CI_WD = upr2 - lwr2,
-               ID_CI_WD = cases_est_id_max - cases_est_id_min)
-      # Naive
+      # Select and compute performance metrics
+      merged_data <- merged_data %>%
+        select(
+          ew_start, ew, sum_of_cases, cases_est_id, cases_est_id_min,
+          cases_est_id_max, dengue, sintomas.dengue, uf,
+          lwr, upr, prediction, lwr2, upr2, GT2, IDGT, IDGT2,
+          DCGT_pred, DCGT_lb, DCGT_ub,
+          DC_pred, DC_lb, DC_ub, ew_pred, True
+        ) %>%
+        mutate(
+          DCGT_CoverageRate = True > DCGT_lb   & True < DCGT_ub,
+          DC_CoverageRate   = True > DC_lb     & True < DC_ub,
+          GT_CoverageRate   = True > lwr       & True < upr,
+          GT2_CoverageRate  = True > lwr2      & True < upr2,
+          ID_CoverageRate   = True > cases_est_id_min & True < cases_est_id_max,
+          DCGT_CI_WD = DCGT_ub - DCGT_lb,
+          DC_CI_WD   = DC_ub   - DC_lb,
+          GT_CI_WD   = upr     - lwr,
+          GT2_CI_WD  = upr2    - lwr2,
+          ID_CI_WD   = cases_est_id_max - cases_est_id_min
+        )
+      
+      # Naive (last-week) forecast
       ew_start_naive_start <- min(merged_data$ew_start) %m-% weeks(1)
-      ew_start_naive_end <- max(merged_data$ew_start) %m-% weeks(1)
-      Naive <- data |> filter(ew_start <= ew_start_naive_end & ew_start >= ew_start_naive_start) %>%
-        select(sum_of_cases)
-      merged_data$Naive <- Naive$sum_of_cases
+      ew_start_naive_end   <- max(merged_data$ew_start) %m-% weeks(1)
+      Naive <- data %>%
+        filter(
+          ew_start <= ew_start_naive_end,
+          ew_start >= ew_start_naive_start
+        ) %>% pull(sum_of_cases)
+      merged_data$Naive <- Naive
       
       final_df <- rbind(final_df, merged_data)
     }
   }
   
   if (save) {
-    write.csv(final_df,
-              sprintf("data/model_results/model_%s_general.csv", last_ew_start),
-              row.names = F)
+    write.csv(
+      final_df,
+      sprintf("data/model_results/model_%s_general.csv", last_ew_start),
+      row.names = FALSE
+    )
   }
+  
   final_df
 }
+
 
 compare_Measurement <- function(data,
                                 num_of_models = 5, num_of_CI = 4,
@@ -466,8 +498,10 @@ brazil_states_full <- c(
   "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins", "Brazil"
 )
 
-df <- generate_Prediction(brazil_ufs, K = 10, compare_length = 20, save = F)
+df <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
 
+df_t <- generate_Prediction("AC", K = 10, compare_length = 5, save = F)
+#brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
 temp <- df |>
   group_by(ew_pred, uf) |>
@@ -479,7 +513,8 @@ temp$Naive  <- ifelse(temp$Naive == 0, 1, temp$Naive )
 ########### get metrics table ###########
 model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive,
                                        DCGT_CoverageRate, DC_CoverageRate, GT_CoverageRate, ID_CoverageRate,
-                                       DCGT_CI_WD, DC_CI_WD, GT_CI_WD, ID_CI_WD,uf) %>%
+                                       DCGT_CI_WD, DC_CI_WD, GT_CI_WD, ID_CI_WD,uf,
+                                       lwr, upr, DCGT_lb, DCGT_ub, DC_lb, DC_ub) %>%
   rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
 
