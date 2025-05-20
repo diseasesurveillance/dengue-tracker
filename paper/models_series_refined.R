@@ -5,6 +5,11 @@ library(lubridate)
 library(forecast)
 library(tidyverse)
 library(xtable)
+library(FinTS)
+library(tseries)
+
+
+
 
 #remotes::install_github("thfuchs/tsRNN")
 
@@ -17,110 +22,126 @@ aweek::set_week_start("Sunday")
 brazil_ufs <- c(
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
   "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
-  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO", "BR"
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+  #"BR"
 )
 
-merged_data <- data
+
+
 run_model_DCGT <- function(merged_data, topics, 
                            last_date = NULL,
                            K = 4, gamma = 0.95){
-  # set date
+  # Set end date for training
   if(is.null(last_date)){
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
-  }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
+  }else{
+    end <- (last_date - wday(last_date) + 1) %m-% weeks(K)
+  }
   start <- end %m-% years(3)
-  merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics) 
-  # get train and pred data
-  merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
-  end_pred <- end %m+% weeks(K); start_pred <- end %m+% weeks(1)
+  
+  # Prepare data
+  merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics)
+  merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start)
+  end_pred <- end %m+% weeks(K)
+  start_pred <- end %m+% weeks(1)
   merged_data_temp_pred <- merged_data_temp %>% filter(ew_start <= end_pred & ew_start >= start_pred)
-  # fit the model
-  # fit <- auto.arima(merged_data_temp_train$sum_of_cases, 
-  #                   xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
-  # forec <- forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = gamma)
-  # fit the model and output NA if error
+  
+  # Fit model
   fit <- tryCatch(
     {
       auto.arima(merged_data_temp_train$sum_of_cases, 
-                 xreg = as.matrix(merged_data_temp_train[,c(3:(length(topics) +2))]))
+                 xreg = as.matrix(merged_data_temp_train[, c(3:(length(topics) + 2))]),
+                 lambda = "auto", biasadj = TRUE)
     },
     error = function(e) {
       return(NULL)
     }
   )
   
+  # Forecast
   forec <- tryCatch(
     {
-      forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) +2))]), level = gamma)
+      forecast(fit, xreg = as.matrix(merged_data_temp_pred[, c(3:(length(topics) + 2))]),
+               level = gamma)
     },
     error = function(e) {
       return(NULL)
     }
   )
   
+  # Residual and tests
+  res <- residuals(fit)
+  homoskedas <- ArchTest(res)$p.value
+  normality <- shapiro.test(res)$p.value
   
+  # Prepare forecast output
   if (is.null(fit) | is.null(forec)) {
     forec_out <- tibble(
-      DCGT_pred = rep(NA, K),
-      DCGT_lb = rep(NA, K),
-      DCGT_ub = rep(NA, K)
+      DCGT_pred = rep(NA, K)
     )
-  }else{
-    # before change on (July 9th)
-    # Conformative QR
-    # error <-
-    #   apply(cbind(
-    #     forec$lower - forec$mean,
-    #     forec$mean - forec$upper
-    #   ), 1, max)
-    # 
-    # quantile_error <- quantile(error, probs = gamma, na.rm = T)
-    # 
-    # adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
-    # adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
-    # 
-    # # rearrange
-    # forec_out <- tibble(DCGT_pred = as.numeric(forec$mean), 
-    #                     DCGT_lb = as.numeric(adjusted_forecast_lower),
-    #                     DCGT_ub = as.numeric(adjusted_forecast_upper))
-    # forec_out <- cbind(tail(merged_data, 20), forec_out)
-    
-    forec_out <- tibble(DCGT_pred = as.numeric(forec$mean),
-                        DCGT_lb = as.numeric(forec$lower),
-                        DCGT_ub = as.numeric(forec$upper))
+    if (length(gamma) > 1) {
+      for (g in gamma) {
+        forec_out[[paste0("DCGT_lwr_", round(g * 100))]] <- rep(NA, K)
+        forec_out[[paste0("DCGT_upr_", round(g * 100))]] <- rep(NA, K)
+      }
+    } else {
+      forec_out$DCGT_lwr <- rep(NA, K)
+      forec_out$DCGT_upr <- rep(NA, K)
+    }
+  } else {
+    forec_out <- tibble(DCGT_pred = as.numeric(forec$mean))
+    if (is.matrix(forec$lower)) {
+      lower_names <- colnames(forec$lower)  # e.g. "50%", "95%"
+      
+      for (g in gamma) {
+        g_name <- paste0(round(g * 100), "%")
+        g_label <- round(g * 100)
+        
+        forec_out[[paste0("DCGT_lwr_", g_label)]] <- as.numeric(forec$lower[, g_name])
+        forec_out[[paste0("DCGT_upr_", g_label)]] <- as.numeric(forec$upper[, g_name])
+      }
+    }else {
+      # Single level
+      forec_out$DCGT_lwr <- as.numeric(forec$lower)
+      forec_out$DCGT_upr <- as.numeric(forec$upper)
+    }
   }
-  forec_out <- cbind(tail(merged_data, 20), forec_out)
   
-  forec_out
+  forec_out <- cbind(tail(merged_data, 20), forec_out)
+  return(list(forec_out,normality, homoskedas))
 }
 
 run_model_DC <- function(merged_data, topics, 
                          last_date = NULL,
-                         K = 4, gamma = 0.95){
-  # set date
-  if(is.null(last_date)){
+                         K = 4, gamma = 0.95,
+                         lambda = "auto", biasadj = TRUE) {
+  # Set date
+  if (is.null(last_date)) {
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
-  }else{end <- (last_date - wday(last_date) + 1) %m-% weeks(K)}
+  } else {
+    end <- (last_date - wday(last_date) + 1) %m-% weeks(K)
+  }
   start <- end %m-% years(3)
   
-  # Convert to the start of ew weeks
+  # Convert to the start of epidemiological weeks
   end <- (end - wday(end) + 1)
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases)
   
-  # get train and pred data
-  merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start) 
-  # fit the model
-  # fit <- auto.arima(merged_data_temp_train$sum_of_cases)
-  # forec <- forecast(fit, h = K, level = gamma)
+  # Get training data
+  merged_data_temp_train <- merged_data_temp %>% filter(ew_start <= end & ew_start >= start)
+  
+  # Fit ARIMA model
   fit <- tryCatch(
     {
-      auto.arima(merged_data_temp_train$sum_of_cases)
+      auto.arima(merged_data_temp_train$sum_of_cases,
+                 lambda = lambda, biasadj = biasadj)
     },
     error = function(e) {
       return(NULL)
     }
   )
   
+  # Forecast
   forec <- tryCatch(
     {
       forecast(fit, h = K, level = gamma)
@@ -130,44 +151,58 @@ run_model_DC <- function(merged_data, topics,
     }
   )
   
-  if (is.null(fit) | is.null(forec)) {
-    forec_out <- tibble(
-      DC_pred = rep(NA, K),
-      DC_lb = rep(NA, K),
-      DC_ub = rep(NA, K)
-    )
-  }else{
-    # before change on (July 9th)
-    # Conformative QR
-    # error <-
-    #   apply(cbind(
-    #     forec$lower - forec$mean,
-    #     forec$mean - forec$upper
-    #   ), 1, max)
-    # 
-    # quantile_error <- quantile(error, probs = gamma, na.rm = T)
-    # 
-    # adjusted_forecast_lower <- pmax(forec$lower - quantile_error, 0)
-    # adjusted_forecast_upper <- pmax(forec$upper + quantile_error, 0)
-    # 
-    # # rearrange
-    # forec_out <- tibble(DC_pred = as.numeric(forec$mean), 
-    #                     DC_lb = as.numeric(adjusted_forecast_lower),
-    #                     DC_ub = as.numeric(adjusted_forecast_upper))
-    # forec_out <- cbind(tail(merged_data, 20), forec_out)
-    
-    forec_out <- tibble(DC_pred = as.numeric(forec$mean),
-                        DC_lb = as.numeric(forec$lower),
-                        DC_ub = as.numeric(forec$upper))
-  }
-  forec_out <- cbind(tail(merged_data, 20), forec_out)
+  # Residual and tests
+  res <- residuals(fit)
+  homoskedas <- ArchTest(res)$p.value
+  normality <- shapiro.test(res)$p.value
   
-  forec_out
+  # Prepare forecast output
+  if (is.null(fit) | is.null(forec)) {
+    forec_out <- tibble(DC_pred = rep(NA, K))
+    if (length(gamma) > 1) {
+      for (g in gamma) {
+        g_name <- round(g * 100)
+        forec_out[[paste0("DC_lwr_", g_name)]] <- rep(NA, K)
+        forec_out[[paste0("DC_upr_", g_name)]] <- rep(NA, K)
+      }
+    } else {
+      forec_out$DC_lwr <- rep(NA, K)
+      forec_out$DC_upr <- rep(NA, K)
+    }
+  } else {
+    forec_out <- tibble(DC_pred = as.numeric(forec$mean))
+    if (is.matrix(forec$lower)) {
+      lower_names <- colnames(forec$lower)  # e.g. "50%", "95%"
+      
+      for (g in gamma) {
+        g_name <- paste0(round(g * 100), "%")
+        g_label <- round(g * 100)
+        
+        forec_out[[paste0("DC_lwr_", g_label)]] <- as.numeric(forec$lower[, g_name])
+        forec_out[[paste0("DC_upr_", g_label)]] <- as.numeric(forec$upper[, g_name])
+      }
+    }else {
+      forec_out$DC_lwr <- as.numeric(forec$lower)
+      forec_out$DC_upr <- as.numeric(forec$upper)
+    }
+  }
+  
+  forec_out <- cbind(tail(merged_data, 20), forec_out)
+  return(list(forec_out,normality, homoskedas))
 }
 
-generate_Prediction <- function(ufs, K = 10, compare_length = 1, save = TRUE, gamma = 0.95) {
+
+generate_Prediction <- function(ufs, K = 15, compare_length = 1, save = TRUE, 
+                                gamma = c(0.95,0.5), if_test = FALSE) {
   final_df <- data.frame()
   epi_weeks <- c(seq(202410, 202452, by = 1), seq(202501, 202518, by = 1))
+  # epi_weeks <- seq(202410, 202430, by = 1)
+  
+  if(if_test){
+    pvalue_mat <- matrix(data = NA, nrow = length(brazil_ufs) , ncol = length(epi_weeks) - K)
+    rownames(pvalue_mat) <- ufs; colnames(pvalue_mat) <- as.character(head(epi_weeks, length(epi_weeks) - K))
+    homoscedasticity_p <- normality_p <- list(GT_p = pvalue_mat, DC_p = pvalue_mat, DCGT_p = pvalue_mat)
+  }
   
   for (epi_week in epi_weeks) {
     if (epi_week + K > last(epi_weeks)) break
@@ -204,47 +239,62 @@ generate_Prediction <- function(ufs, K = 10, compare_length = 1, save = TRUE, ga
         20
       )
       
-      # Generate nowcasting inputs
+      # Generate nowcasting inputs from GT
       data  <- generate_data(
-        uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(1, 2),
-        ew = epi_week, save = FALSE
+        uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(1),
+        ew = epi_week, save = FALSE, gamma = gamma[1]
       ) %>% filter(ew_start <= ew_start_)
+      
+      GT_temp_50 <- generate_data(
+        uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(1),
+        ew = epi_week, save = FALSE, gamma = gamma[2]
+      ) %>% filter(ew_start <= ew_start_)
+      
+      data <- data %>% mutate(
+        GT_prediction = prediction,
+        GT_lwr_95 = lwr, GT_upr_95 = upr,
+        GT_lwr_50 = GT_temp_50$lwr, GT_upr_50 = GT_temp_50$upr)
       
       # Deduplicate for BR
       if (uf == "BR") {
         data  <- unique(data)
       }
       
-      # Merge GT query results
-      data <- data %>% mutate(
-        lwr2 = data$lwr,
-        upr2 = data$upr,
-        GT2  = data$prediction,
-        IDGT  = (prediction + cases_est_id) / 2,
-        IDGT2 = (GT2 + cases_est_id) / 2
-      )
-      
-      # Run delay-correction models
+      # Run delay-correction models from SARIMAX
       data_DCGT <- run_model_DCGT(
-        data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma
-        #data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
+        data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
       )
       data_DC   <- run_model_DC(
-        data, topics = out_compare[[2]], last_date = ew_start_, K = 4, gamma = gamma
-        # data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
+        data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
       )
       
       # Merge model outputs and true values
       merged_data <- merge(
-        data_DCGT, data_DC,
-        by = names(data_DCGT)[1:(ncol(data_DCGT) - 3)]
+        data_DCGT[[1]], data_DC[[1]],
+        by = intersect(names(data_DCGT[[1]]), names(data_DC[[1]]))
       )
+      
       out <- tibble(
         ew_start = data_compare$ew_start,
         ew_pred  = epi_week + 1,
         True     = data_compare$sum_of_cases
       )
-      merged_data <- tail(merge(merged_data, out, by = "ew_start"), compare_length)
+      merged_data <- merge(merged_data, out, by = "ew_start")
+      
+      
+      if(if_test){
+        merged_data <- merged_data %>% mutate(residual_GT = True - GT_prediction)
+        # pvalues from each test
+        normality_p$GT_p[uf, as.character(epi_week)] <- round(shapiro.test(merged_data$residual_GT)$p.value,3)
+        normality_p$DC_p[uf, as.character(epi_week)] <- round(data_DC[[2]],3)
+        normality_p$DCGT_p[uf, as.character(epi_week)] <- round(data_DCGT[[2]],3)
+        
+        homoscedasticity_p$GT_p[uf, as.character(epi_week)] <- round(check_heteroscedasticity(merged_data$residual_GT,merged_data$GT_prediction),3)
+        homoscedasticity_p$DC_p[uf, as.character(epi_week)] <- round(data_DC[[3]],3)
+        homoscedasticity_p$DCGT_p[uf, as.character(epi_week)] <- round(data_DCGT[[3]],3)
+      }
+      
+      merged_data <- tail(merged_data, compare_length)
       merged_data$uf <- uf
       
       # Select and compute performance metrics
@@ -252,21 +302,26 @@ generate_Prediction <- function(ufs, K = 10, compare_length = 1, save = TRUE, ga
         select(
           ew_start, ew, sum_of_cases, cases_est_id, cases_est_id_min,
           cases_est_id_max, dengue, sintomas.dengue, uf,
-          lwr, upr, prediction, lwr2, upr2, GT2, IDGT, IDGT2,
-          DCGT_pred, DCGT_lb, DCGT_ub,
-          DC_pred, DC_lb, DC_ub, ew_pred, True
+          GT_prediction, GT_lwr_95, GT_upr_95, GT_lwr_50, GT_upr_50,
+          DCGT_pred, DCGT_lwr_95, DCGT_upr_95, DCGT_lwr_50, DCGT_upr_50,
+          DC_pred, DC_lwr_95, DC_upr_95, DC_lwr_50, DC_upr_50,
+          ew_pred, True
         ) %>%
         mutate(
-          DCGT_CoverageRate = True > DCGT_lb   & True < DCGT_ub,
-          DC_CoverageRate   = True > DC_lb     & True < DC_ub,
-          GT_CoverageRate   = True > lwr       & True < upr,
-          GT2_CoverageRate  = True > lwr2      & True < upr2,
-          ID_CoverageRate   = True > cases_est_id_min & True < cases_est_id_max,
-          DCGT_CI_WD = DCGT_ub - DCGT_lb,
-          DC_CI_WD   = DC_ub   - DC_lb,
-          GT_CI_WD   = upr     - lwr,
-          GT2_CI_WD  = upr2    - lwr2,
-          ID_CI_WD   = cases_est_id_max - cases_est_id_min
+          DCGT_CoverageRate_95 = True > DCGT_lwr_95   & True < DCGT_upr_95,
+          DC_CoverageRate_95   = True > DC_lwr_95     & True < DC_upr_95,
+          GT_CoverageRate_95   = True > GT_lwr_95       & True < GT_upr_95,
+          DCGT_CoverageRate_50 = True > DCGT_lwr_50   & True < DCGT_upr_50,
+          DC_CoverageRate_50   = True > DC_lwr_50     & True < DC_upr_50,
+          GT_CoverageRate_50   = True > GT_lwr_50       & True < GT_upr_50,
+          # ID_CoverageRate   = True > cases_est_id_min & True < cases_est_id_max,
+          DCGT_CI_WD_95 = DCGT_upr_95 - DCGT_lwr_95,
+          DC_CI_WD_95   = DC_upr_95   - DC_lwr_95,
+          GT_CI_WD_95   = GT_upr_95     - GT_lwr_95,
+          DCGT_CI_WD_50 = DCGT_upr_50 - DCGT_lwr_50,
+          DC_CI_WD_50   = DC_upr_50   - DC_lwr_50,
+          GT_CI_WD_50   = GT_upr_50  - GT_lwr_50
+          # ID_CI_WD   = cases_est_id_max - cases_est_id_min
         )
       
       # Naive (last-week) forecast
@@ -291,38 +346,107 @@ generate_Prediction <- function(ufs, K = 10, compare_length = 1, save = TRUE, ga
     )
   }
   
-  final_df
+  if(if_test){
+    return(list(final_df, normality_p, homoscedasticity_p))
+  }else{
+    return(final_df)
+  }
 }
 
 
 compare_Measurement <- function(data,
-                                num_of_models = 5, num_of_CI = 4,
-                                relative_to_naive = TRUE){
+                                num_of_models = 5, num_of_CI = 3,
+                                relative_to_naive = FALSE,
+                                if_sMIS = TRUE, if_logScore = TRUE){
   # Input data with first column to be the real value
   # and other columns are predicted values
   # And model names
+  Models <- c("DCGT", "DC", "GT", "InfoDengue", "Naive")
+  
   num_of_non_CI <- num_of_models - num_of_CI
   
-  print(data$uf[1])
-  
   # Coverage rate
-  CR <- data[, c((num_of_models + 2) : (num_of_models + 1 + num_of_CI))]
+  #95%
+  CR_95_names <- grep("CoverageRate_95", names(data), value = TRUE)
+  CR_95 <- data[, CR_95_names]
   
-  CR_out <- as.numeric(apply(CR, 2, function(col) {
+  CR_out_95 <- as.numeric(apply(CR_95, 2, function(col) {
     sum(na.omit(col)) / length(na.omit(col))
   }))
   
-  CR_out <- c(CR_out, rep(NaN,num_of_non_CI))
+  CR_out_95 <- c(CR_out_95, rep(NaN,num_of_non_CI))
+  
+  #50%
+  CR_50_names <- grep("CoverageRate_50", names(data), value = TRUE)
+  CR_50 <- data[, CR_50_names]
+  
+  CR_out_50 <- as.numeric(apply(CR_50, 2, function(col) {
+    sum(na.omit(col)) / length(na.omit(col))
+  }))
+  
+  CR_out_50 <- c(CR_out_50, rep(NaN,num_of_non_CI))
+  
+  
   
   # CI width
-  CI <- data[, c((num_of_models + 2 + num_of_CI) : ncol(data))]
-  CI_out <- CI %>% 
+  CI_95 <- data %>% select(DCGT_CI_WD_95, DC_CI_WD_95, GT_CI_WD_95, uf)
+  CI_out_95 <- CI_95 %>% 
     mutate(across(.cols = -uf, .fns = ~ sum(na.omit(.)) / length(na.omit(.)))) %>%
     distinct(uf, .keep_all = TRUE) %>% select(-uf)%>%as.numeric()
   
-  CI_out <- c(CI_out, rep(NaN,num_of_non_CI))
+  CI_out_95 <- c(CI_out_95, rep(NaN,num_of_non_CI))
   
+  CI_50 <- data %>% select(DCGT_CI_WD_50, DC_CI_WD_50, GT_CI_WD_50, uf)
+  CI_out_50 <- CI_50 %>% 
+    mutate(across(.cols = -uf, .fns = ~ sum(na.omit(.)) / length(na.omit(.)))) %>%
+    distinct(uf, .keep_all = TRUE) %>% select(-uf)%>%as.numeric()
   
+  CI_out_50 <- c(CI_out_50, rep(NaN,num_of_non_CI))
+  
+  # sMIS
+  if(if_sMIS){
+    sMIS_DCGT <- tsRNN::smis(data = data$DCGT, actual = data$Real_value, 
+                             lower = data$DCGT_lwr_95, upper = data$DCGT_upr_95,
+                             m = 1,
+                             level = 0.95)
+    sMIS_DC <- tsRNN::smis(data = data$DC, actual = data$Real_value, 
+                           lower = data$DC_lwr_95, upper = data$DC_upr_95,
+                           m = 1,
+                           level = 0.95)
+    sMIS_GT <- tsRNN::smis(data = data$GT, actual = data$Real_value, 
+                           lower = data$GT_lwr_95, upper = data$GT_upr_95,
+                           m = 1,
+                           level = 0.95)
+    sMIS_out <- c(sMIS_DCGT, sMIS_DC, sMIS_GT, NA, NA)
+  }
+  
+  if(if_logScore) {
+    logScore_out <- numeric(num_of_models-2)
+    z975 <- qnorm(0.975)
+    
+    for(j in seq_len(num_of_models-2)) {
+      model_name <- Models[j]
+      # estimations
+      mu   <- data[[ model_name ]]
+      lwr  <- data[[ paste0(model_name, "_lwr_95") ]]
+      upr  <- data[[ paste0(model_name, "_upr_95") ]]
+      # estimate the variance
+      sigma <- (upr - lwr) / (2 * z975)
+      # calculate the -log prob
+      ls_t  <- -dnorm(data$Real_value,
+                      mean = mu,
+                      sd   = sigma,
+                      log  = TRUE)
+      if(j == 4){print(ls_t)}
+      # calc average
+      logScore_out[j] <- mean(ls_t, na.rm = TRUE)
+      
+      # package scoringRules
+      # logScore_out[j] <- mean(logs_norm(data$Real_value, mean = mu, sd = sigma))
+    }
+    # missing for naive
+    logScore_out <- c(logScore_out, NA, NA)
+  }
   
   data <- data[, c(1:(num_of_models + 1))]
   
@@ -363,11 +487,16 @@ compare_Measurement <- function(data,
   Measurements[,-1] <- round(Measurements[,-1],3)
   
   # Combine the CR
-  Measurements$CR <- CR_out
-  Measurements$WD <- CI_out
+  Measurements$CR_95 <- CR_out_95
+  Measurements$WD_95 <- CI_out_95
+  Measurements$CR_50 <- CR_out_50
+  Measurements$WD_50 <- CI_out_50
+  if(if_sMIS){  Measurements$sMIS <- sMIS_out}else{Measurements$sMIS <- rep(NA,5)}
+  if(if_logScore){  Measurements$logScore <- logScore_out}else{Measurements$logScore <- rep(NA,5)}
   
   return(Measurements)
 }
+
 
 
 get_Metrics <- function(y_fitted, y , IF_log = F){
@@ -495,15 +624,20 @@ brazil_states_full <- c(
   "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul", 
   "Minas Gerais", "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí", 
   "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul", "Rondônia", 
-  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins", "Brazil"
+  "Roraima", "Santa Catarina", "São Paulo", "Sergipe", "Tocantins" 
+  #"Brazil"
 )
-
-df <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
+# dengue
+# df <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
+#sintomas dengue
+# df2 <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
+# both
+df3 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
 
 df_t <- generate_Prediction("AC", K = 10, compare_length = 5, save = F)
 #brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
-temp <- df |>
+temp <- df3 |>
   group_by(ew_pred, uf) |>
   filter(ew == max(ew)) |>
   ungroup()
@@ -511,28 +645,38 @@ temp <- df |>
 # to avoid Inf
 temp$Naive  <- ifelse(temp$Naive == 0, 1, temp$Naive )
 ########### get metrics table ###########
-model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive,
-                                       DCGT_CoverageRate, DC_CoverageRate, GT_CoverageRate, ID_CoverageRate,
-                                       DCGT_CI_WD, DC_CI_WD, GT_CI_WD, ID_CI_WD,uf,
-                                       lwr, upr, DCGT_lb, DCGT_ub, DC_lb, DC_ub) %>%
-  rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
+model_preds_metrics <- temp %>% select(True, DCGT_pred, DC_pred, GT_prediction, cases_est_id, Naive,
+                                       DCGT_CoverageRate_95, DC_CoverageRate_95, GT_CoverageRate_95, 
+                                       DCGT_CoverageRate_50, DC_CoverageRate_50, GT_CoverageRate_50, 
+                                       DCGT_CI_WD_95, DC_CI_WD_95, GT_CI_WD_95, 
+                                       DCGT_CI_WD_50, DC_CI_WD_50, GT_CI_WD_50, 
+                                       uf, GT_lwr_95, GT_upr_95, GT_lwr_50, GT_upr_50,  
+                                       DCGT_lwr_95, DCGT_upr_95, DCGT_lwr_50, DCGT_upr_50,
+                                       DC_lwr_95, DC_upr_95, DC_lwr_50, DC_upr_50,
+                                       cases_est_id_min, cases_est_id_max) %>%
+  rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = GT_prediction, InfoDengue = cases_est_id, 
+         InfoDengue_lwr = cases_est_id_min, InfoDengue_upr = cases_est_id_max) %>%
   as.data.frame()
 
-model_preds_metrics_2nd <- temp %>% select(True, prediction, GT2, cases_est_id, IDGT, IDGT2,
-                                           GT_CoverageRate, GT2_CoverageRate, ID_CoverageRate,
-                                           GT_CI_WD, GT2_CI_WD, ID_CI_WD, uf) %>%
-  rename(Real_value = True, GT = prediction, InfoDengue = cases_est_id) %>%
-  as.data.frame()
+# model_preds_metrics_2nd <- temp %>% select(True, prediction, GT2, cases_est_id, IDGT, IDGT2,
+#                                            GT_CoverageRate, GT2_CoverageRate, ID_CoverageRate,
+#                                            GT_CI_WD, GT2_CI_WD, ID_CI_WD, uf) %>%
+#   rename(Real_value = True, GT = prediction, InfoDengue = cases_est_id) %>%
+#   as.data.frame()
 
 real_time_list <- list(); real_time_list_2nd <- list()
 
 count <- 1
 for (state in brazil_ufs) {
-  real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(model_preds_metrics$uf == state),], 
-                                                                     relative_to_naive = F)
-  real_time_list_2nd[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics_2nd[which(model_preds_metrics_2nd$uf == state),],
-                                                                         num_of_models = 5, num_of_CI = 3,
-                                                                         relative_to_naive = F)
+  print(state)
+  if(state == "ES"){  
+    real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(model_preds_metrics$uf == state),], 
+                                                                                         relative_to_naive = F,
+                                                                       if_sMIS = F, if_logScore = F)
+  }else{
+    real_time_list[[brazil_states_full[count]]] <- compare_Measurement(model_preds_metrics[which(model_preds_metrics$uf == state),], 
+                                                                       relative_to_naive = F)
+    }
   count <- count + 1
 }
 
@@ -566,7 +710,8 @@ highlight_values <- function(df, type = c("min", "max"), n = 1) {
 create_latex_tables <- function(real_time_list, brazil_states_full,
                                 num_of_models = 5, num_of_CI = 4,
                                 latex_code = TRUE) {
-  metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR", "WD")
+  metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", "CR_95", "WD_95",
+               "CR_50", "WD_50", "sMIS", "logScore")
   models <- unique(real_time_list[[1]]$Models)
   
   # Initialize data frames for each metric
@@ -579,7 +724,7 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   
   # Fill data frames with the appropriate metrics
   for (state in brazil_states_full) {
-    if(state == "Brazil") {next}
+    # if(state == "Brazil") {next}
     data <- real_time_list[[state]]
     for (metric in metrics) {
       sprintf("%s, %s", metric, state)
@@ -592,8 +737,12 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   
   # Remove specific columns from CR and WD (All NAs)
   # Here last two columns InfoDengue and Naive is removed
-  metrics_df$CR <- metrics_df$CR[, -c((num_of_CI ) : num_of_models)]
-  metrics_df$WD <- metrics_df$WD[, -c((num_of_CI ) : num_of_models)]
+  metrics_df$CR_95 <- metrics_df$CR_95[, -c((num_of_CI ) : num_of_models)]
+  metrics_df$CR_50 <- metrics_df$CR_50[, -c((num_of_CI ) : num_of_models)]
+  metrics_df$WD_95 <- metrics_df$WD_95[, -c((num_of_CI ) : num_of_models)]
+  metrics_df$WD_50 <- metrics_df$WD_50[, -c((num_of_CI ) : num_of_models)]
+  metrics_df$sMIS <- metrics_df$sMIS[, -c((num_of_CI +1) : num_of_models)]
+  metrics_df$logScore <- metrics_df$logScore[, -c((num_of_CI +1) : num_of_models)]
   
   if(latex_code){
     # Generate LaTeX tables
@@ -614,7 +763,7 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   }
 }
 create_latex_tables(real_time_list, brazil_states_full)
-create_latex_tables(real_time_list_2nd, brazil_states_full, num_of_CI = 3)
+
 
 
 ###################### boxplot ######################
