@@ -7,10 +7,8 @@ library(tidyverse)
 library(xtable)
 library(FinTS)
 library(tseries)
+library(tsRNN)
 
-
-
-#remotes::install_github("thfuchs/tsRNN")
 
 #setwd('/Users/xiaoy0a/Desktop/GitHub/Dengue/dengue-tracker/')
 
@@ -637,7 +635,7 @@ df1 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
 # df_t <- generate_Prediction("AC", K = 10, compare_length = 5, save = F)
 #brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
-temp <- df1 |>
+temp <- df_1y |>
   group_by(ew_pred, uf) |>
   filter(ew == max(ew)) |>
   ungroup()
