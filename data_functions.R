@@ -270,7 +270,7 @@ generate_data <- function(ufs,
                           last_ew_start = Sys.Date() - wday(Sys.Date()) + 1,
                           ew = NULL,
                           index_of_queries = c(1,2),
-                          gamma = 0.95,
+                          gamma = 0.95, year_window = 3,
                           save = F) {
   final_df <- data.frame()
   for (uf in ufs) {
@@ -283,7 +283,7 @@ generate_data <- function(ufs,
     if(uf == "ES") K <- 15
     
     # Filter the data and use last three years to train
-    date_fil <- last_ew_start %m-% years(3)
+    date_fil <- last_ew_start %m-% years(year_window)
     date_fil <- date_fil %m-% weeks(K+1)
     data <- data %>% filter(ew_start >= date_fil)
     

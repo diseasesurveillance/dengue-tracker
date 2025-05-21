@@ -30,14 +30,14 @@ brazil_ufs <- c(
 
 run_model_DCGT <- function(merged_data, topics, 
                            last_date = NULL,
-                           K = 4, gamma = 0.95){
+                           K = 4, year_window = 3 ,gamma = 0.95){
   # Set end date for training
   if(is.null(last_date)){
     end <- (Sys.Date() - wday(Sys.Date()) + 1) %m-% weeks(K)
   }else{
     end <- (last_date - wday(last_date) + 1) %m-% weeks(K)
   }
-  start <- end %m-% years(3)
+  start <- end %m-% years(year_window)
   
   # Prepare data
   merged_data_temp <- merged_data %>% select(ew_start, sum_of_cases, topics)
@@ -113,7 +113,7 @@ run_model_DCGT <- function(merged_data, topics,
 
 run_model_DC <- function(merged_data, topics, 
                          last_date = NULL,
-                         K = 4, gamma = 0.95,
+                         K = 4, year_window = 3, gamma = 0.95,
                          lambda = "auto", biasadj = TRUE) {
   # Set date
   if (is.null(last_date)) {
@@ -121,7 +121,7 @@ run_model_DC <- function(merged_data, topics,
   } else {
     end <- (last_date - wday(last_date) + 1) %m-% weeks(K)
   }
-  start <- end %m-% years(3)
+  start <- end %m-% years(year_window)
   
   # Convert to the start of epidemiological weeks
   end <- (end - wday(end) + 1)
@@ -191,8 +191,7 @@ run_model_DC <- function(merged_data, topics,
   return(list(forec_out,normality, homoskedas))
 }
 
-
-generate_Prediction <- function(ufs, K = 15, compare_length = 1, save = TRUE, 
+generate_Prediction <- function(ufs, K = 15, compare_length = 1, year_window = 3, save = TRUE, 
                                 gamma = c(0.95,0.5), if_test = FALSE) {
   final_df <- data.frame()
   epi_weeks <- c(seq(202410, 202452, by = 1), seq(202501, 202518, by = 1))
@@ -242,12 +241,12 @@ generate_Prediction <- function(ufs, K = 15, compare_length = 1, save = TRUE,
       # Generate nowcasting inputs from GT
       data  <- generate_data(
         uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(1),
-        ew = epi_week, save = FALSE, gamma = gamma[1]
+        ew = epi_week, save = FALSE, year_window = year_window, gamma = gamma[1]
       ) %>% filter(ew_start <= ew_start_)
       
       GT_temp_50 <- generate_data(
         uf, last_ew_start = ew_start_ %m+% weeks(1), index_of_queries = c(1),
-        ew = epi_week, save = FALSE, gamma = gamma[2]
+        ew = epi_week, save = FALSE, year_window = year_window, gamma = gamma[2]
       ) %>% filter(ew_start <= ew_start_)
       
       data <- data %>% mutate(
@@ -262,10 +261,12 @@ generate_Prediction <- function(ufs, K = 15, compare_length = 1, save = TRUE,
       
       # Run delay-correction models from SARIMAX
       data_DCGT <- run_model_DCGT(
-        data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
+        data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, 
+        year_window = year_window, gamma = gamma
       )
       data_DC   <- run_model_DC(
-        data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, gamma = gamma
+        data, topics = out_compare[[2]][1], last_date = ew_start_, K = 4, 
+        year_window = year_window, gamma = gamma
       )
       
       # Merge model outputs and true values
@@ -417,7 +418,7 @@ compare_Measurement <- function(data,
                            lower = data$GT_lwr_95, upper = data$GT_upr_95,
                            m = 1,
                            level = 0.95)
-    sMIS_out <- c(sMIS_DCGT, sMIS_DC, sMIS_GT, NA, NA)
+    sMIS_out <- c(sMIS_DCGT, sMIS_DC, sMIS_GT, NaN, NaN)
   }
   
   if(if_logScore) {
@@ -445,7 +446,7 @@ compare_Measurement <- function(data,
       # logScore_out[j] <- mean(logs_norm(data$Real_value, mean = mu, sd = sigma))
     }
     # missing for naive
-    logScore_out <- c(logScore_out, NA, NA)
+    logScore_out <- c(logScore_out, NaN, NaN)
   }
   
   data <- data[, c(1:(num_of_models + 1))]
@@ -632,12 +633,12 @@ brazil_states_full <- c(
 #sintomas dengue
 # df2 <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
 # both
-df3 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
+df1 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
 
-df_t <- generate_Prediction("AC", K = 10, compare_length = 5, save = F)
+# df_t <- generate_Prediction("AC", K = 10, compare_length = 5, save = F)
 #brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
-temp <- df3 |>
+temp <- df1 |>
   group_by(ew_pred, uf) |>
   filter(ew == max(ew)) |>
   ungroup()
@@ -741,8 +742,8 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   metrics_df$CR_50 <- metrics_df$CR_50[, -c((num_of_CI ) : num_of_models)]
   metrics_df$WD_95 <- metrics_df$WD_95[, -c((num_of_CI ) : num_of_models)]
   metrics_df$WD_50 <- metrics_df$WD_50[, -c((num_of_CI ) : num_of_models)]
-  metrics_df$sMIS <- metrics_df$sMIS[, -c((num_of_CI +1) : num_of_models)]
-  metrics_df$logScore <- metrics_df$logScore[, -c((num_of_CI +1) : num_of_models)]
+  metrics_df$sMIS <- metrics_df$sMIS[, -c((num_of_CI) : num_of_models)]
+  metrics_df$logScore <- metrics_df$logScore[, -c((num_of_CI) : num_of_models)]
   
   if(latex_code){
     # Generate LaTeX tables
