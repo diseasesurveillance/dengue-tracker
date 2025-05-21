@@ -26,22 +26,14 @@ normalize_ew <- function(x) {
 }
 
 check_heteroscedasticity <- function(residuals, x) {
-  df <- data.frame(res_sq = residuals^2, x = x)
-  model <- lm(res_sq ~ x, data = df)
-  pval <- summary(model)$coefficients[2, 4]
-  return(pval)
-}
-
-check_heteroscedasticity <- function(residuals, x) {
   df    <- data.frame(res_sq = residuals^2, x = x)
   model <- lm(res_sq ~ x, data = df)
   coefs <- summary(model)$coefficients
   
-  # 如果只有截距，直接返回 NA
   if (nrow(coefs) < 2 || ncol(coefs) < 4) {
     return(NA_real_)
   }
-  # 否则正常取斜率的 p-value
+
   return(coefs[2, 4])
 }
 

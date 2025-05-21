@@ -29,5 +29,7 @@ temp <- temp_last4
 
 
 ###### sensitivity test ######
-df_2 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F,
+df_2y <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F,
                            year_window = 2)
+df_1y <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F,
+                            year_window = 1)
