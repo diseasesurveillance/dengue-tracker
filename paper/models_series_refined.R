@@ -7,9 +7,7 @@ library(tidyverse)
 library(xtable)
 library(FinTS)
 library(tseries)
-
-
-
+library(nortest)
 
 #remotes::install_github("thfuchs/tsRNN")
 
@@ -190,6 +188,7 @@ run_model_DC <- function(merged_data, topics,
   forec_out <- cbind(tail(merged_data, 20), forec_out)
   return(list(forec_out,normality, homoskedas))
 }
+
 
 generate_Prediction <- function(ufs, K = 15, compare_length = 1, year_window = 3, save = TRUE, 
                                 gamma = c(0.95,0.5), if_test = FALSE) {
@@ -635,7 +634,7 @@ brazil_states_full <- c(
 # both
 df1 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
 
-# df_t <- generate_Prediction("AC", K = 10, compare_length = 5, save = F)
+df_t <- generate_Prediction("RO", K = 10, compare_length = 5, save = F)
 #brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
 temp <- df1 |>
@@ -683,29 +682,39 @@ for (state in brazil_ufs) {
 
 ########### get latex table for metrics ###########
 
-highlight_values <- function(df, type = c("min", "max"), n = 1) {
-  type <- match.arg(type)
-  if (!(n %in% c(1, 2))) stop("n must be either 1 or 2")
+get_Metrics <- function(y_fitted, y, IF_log = FALSE) {
+  # Ensure aligned lengths and remove entries with missing or zero actuals
+  valid_idx <- which(!is.na(y_fitted) & !is.na(y) & (!IF_log | (!is.na(y) & !is.na(y_fitted))))
+  # Align
+  y_f <- y_fitted[valid_idx]
+  y_r <- y[valid_idx]
   
-  apply(df, 1, function(x) {
-    if (type == "min") {
-      values <- sort(x, na.last = NA)
-    } else if (type == "max") {
-      values <- sort(x, decreasing = TRUE, na.last = NA)
-    }
-    
-    target_vals <- values[1:n]
-    
-    sapply(x, function(y) {
-      if (!is.na(y) && y == target_vals[1]) {
-        paste0("\\textcolor{red}{", y, "}")
-      } else if (n == 2 && !is.na(y) && y == target_vals[2]) {
-        paste0("\\textcolor{blue}{", y, "}")
-      } else {
-        y
-      }
-    })
-  }) %>% t() %>% as.data.frame()
+  # In log scale, back-transform
+  if (IF_log) {
+    case      <- exp(y_r) - 1
+    case_fitted <- exp(y_f) - 1
+  } else {
+    case       <- y_r
+    case_fitted <- y_f
+  }
+  
+  # Remove zeros in actuals to avoid Inf in percentage errors
+  nonzero_idx <- which(case != 0)
+  case       <- case[nonzero_idx]
+  case_fitted <- case_fitted[nonzero_idx]
+  
+  # Compute error metrics
+  RMSE  <- sqrt(mean((case_fitted - case)^2))
+  MAE   <- mean(abs(case_fitted - case))
+  RMSPE <- sqrt(mean(((case_fitted - case) / case)^2))
+  MAPE  <- mean(abs((case_fitted - case) / case))
+  
+  # Return as one-row data frame
+  metrics <- data.frame(RMSE = RMSE,
+                        MAE = MAE,
+                        RMSPE = RMSPE,
+                        MAPE = MAPE)
+  return(metrics)
 }
 
 create_latex_tables <- function(real_time_list, brazil_states_full,
