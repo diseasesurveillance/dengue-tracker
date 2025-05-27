@@ -1,7 +1,7 @@
 library(dplyr)
 library(stringr)
 
-plot_geofacet_series <- function(merged_data, K = 5) {
+plot_geofacet_series <- function(merged_data, K = 15) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
   data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
   #date_no_delay <- data[nrow(data) - K, ]$ew_start
@@ -28,7 +28,7 @@ plot_geofacet_series <- function(merged_data, K = 5) {
     #   x = ew_start, y = prediction,
     #   group = 1, color = "Fitted Model"
     # ), linetype = 1, size = .5) +
-    geom_line(data=data  ,aes(x = day,y = prediction, 
+    geom_line(data=data  ,aes(x = day,y = GT_prediction, 
                               group = 1, color = "Estimate via Google Trends"),size=1) +
     geom_line(data=data  ,aes(x = day,y = DCGT_pred, 
                               group = 1, color = "Estimate via DCGT"),size=1) +
