@@ -7,21 +7,28 @@ plot_geofacet_series <- function(merged_data, K = 15) {
   #date_no_delay <- data[nrow(data) - K, ]$ew_start
   
   data <- data |> mutate_all(~ pmax(., 0))
-    
-  ggplot(data) +
+  
+  # special case to avoid Goias's overfitting
+  data <- data %>%
+    mutate(DCGT_pred = if_else(uf=="GO" & DCGT_pred >35000, 35000, DCGT_pred),
+           DC_pred = if_else(uf=="GO" & DC_pred >35000, 35000, DC_pred))
+  
+  
+  
+  ggplot(filter(data, uf != "GO")) +
     geom_line(data=data,
-      aes(
-        x = ew_start, y = sum_of_cases, group = 1,
-        colour = "Suspected Cases \n (subject to delays)"
-      ),
-      size = 1
+              aes(
+                x = day, y = sum_of_cases, group = 1,
+                colour = "Suspected Cases \n (subject to delays)"
+              ),
+              size=0.5
     ) +
     geom_line(data=data,
-      aes(
-        x = ew_start, y = True, group = 1,
-        colour = "Baseline"
-      ),
-      size = 1
+              aes(
+                x = day, y = True, group = 1,
+                colour = "Baseline"
+              ),
+              size=0.5
     ) +
     
     # geom_line(data = data |> filter(ew_start <= date_no_delay), aes(
@@ -29,22 +36,22 @@ plot_geofacet_series <- function(merged_data, K = 15) {
     #   group = 1, color = "Fitted Model"
     # ), linetype = 1, size = .5) +
     geom_line(data=data  ,aes(x = day,y = GT_prediction, 
-                              group = 1, color = "Estimate via Google Trends"),size=1) +
+                              group = 1, color = "Estimate via Google Trends"),size=0.5) +
     geom_line(data=data  ,aes(x = day,y = DCGT_pred, 
-                              group = 1, color = "Estimate via DCGT"),size=1) +
+                              group = 1, color = "Estimate via DCGT"),size=0.5) +
     geom_line(data=data  ,aes(x = day,y = DC_pred, 
-                                                               group = 1, color = "Estimate via DC"),size=1) +
+                              group = 1, color = "Estimate via DC"),size=0.5) +
     # geom_ribbon(data=data  ,aes(x = day,ymin=lwr, ymax=upr),
     #             fill = "#D81B60", linetype=2, alpha=0.3)+
     geom_line(data=data  ,aes(x = day,y = cases_est_id, 
-                                                                       group = 2, color = "Estimate via InfoDengue"),size=1) +
+                              group = 2, color = "Estimate via InfoDengue"),size=0.5) +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 45, colour = "black",
-                                     vjust = 1, hjust = 1),
+                                     vjust = 1, hjust = 1, size = 3.5),
           axis.title = element_blank(),
-          legend.key.height= unit(1.2, 'cm'),
-          legend.key.width= unit(1.5, 'cm'),
-          legend.text = element_text(size=15),
+          legend.key.height= unit(0.8, 'cm'),
+          legend.key.width= unit(1, 'cm'),
+          legend.text = element_text(size=8),
           legend.position = c(0.15, 0.15)) +
     scale_x_date(date_labels = "%B",date_breaks = "1 month")+
     scale_y_continuous(expand = c(0, 0), limits=c(0, NA), labels = scales::unit_format(scale = 1e-3, unit = "k")) +
@@ -62,11 +69,23 @@ plot_geofacet_series <- function(merged_data, K = 15) {
     
     
     facet_geo(~ uf, grid = "br_states_grid1", label = "name", scale = "free_y") +
-    theme(strip.text = element_text(face="bold", size=11))
+    theme(strip.text = element_text(face="bold", size=5.5))
 }
 
+# df_plot <- generate_Prediction(brazil_ufs, K = 15, compare_length = 1, save = F)
 
-plot_trends_data <- function(merged_data, state, K = 5) {
+pred_trend_out <- plot_geofacet_series(df_plot)
+ggsave(
+  filename = "Fig 6.eps",
+  plot     = pred_trend_out,
+  device   = cairo_ps,      # or "eps"
+  width    = 7.5,             # inches
+  height   = 8.75,             # inches
+  units    = "in",
+  dpi      = 300
+)
+
+plot_geofacet_series <- function(merged_data, state, K = 5) {
   #if (uf == "ES") K <- 15
   date_no_delay <- merged_data[nrow(merged_data) - K, ]$ew_start
   merged_data <- merged_data |> filter((ew_start >= "2023-12-31") & (uf == state))

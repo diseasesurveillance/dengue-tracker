@@ -193,8 +193,8 @@ run_model_DC <- function(merged_data, topics,
 generate_Prediction <- function(ufs, K = 15, compare_length = 1, year_window = 3, save = TRUE, 
                                 gamma = c(0.95,0.5), if_test = FALSE) {
   final_df <- data.frame()
-  epi_weeks <- c(seq(202410, 202452, by = 1), seq(202501, 202518, by = 1))
-  # epi_weeks <- seq(202410, 202430, by = 1)
+   epi_weeks <- c(seq(202410, 202452, by = 1), seq(202501, 202518, by = 1))
+   #epi_weeks <- seq(202410, 202427, by = 1)
   
   if(if_test){
     pvalue_mat <- matrix(data = NA, nrow = length(brazil_ufs) , ncol = length(epi_weeks) - K)
@@ -539,8 +539,9 @@ get_Boxplot <- function(data,
   real_value_col <- colnames(data)[1]
   
   # Get the names of all the prediction columns
-  # prediction_cols <- colnames(data)[-1] # now we use a customize order
-  if(is.null(prediction_cols)){prediction_cols <- colnames(data)[-1]}
+  if (is.null(prediction_cols)) {
+    prediction_cols <- colnames(data)[-1]
+  }
   
   # Add a prefix to distinguish between absolute and percentage differences
   prefix <- ifelse(type == "Diff", "Diff", "Perc")
@@ -579,41 +580,53 @@ get_Boxplot <- function(data,
   colors <- c("chartreuse2", "deepskyblue2", "brown3", "darkorange", "cornsilk2")
   model_names <- prediction_cols
   
-  # Plot the differences using ggplot2, with different colors for each prediction method
+  # ---- Build the plot with smaller fonts, thinner lines, and tinier outliers ----
   p_out <- ggplot(df_long, aes(x = Prediction, y = Difference, fill = Prediction)) +
-    geom_boxplot() +
-    stat_summary(fun = mean, geom = "point", color = "red", shape = 18) +
+    # Thinner box outline and extremely small outlier points
+    geom_boxplot(size = 0.3, outlier.size = 0.2) +
+    
+    # Smaller mean summary point
+    stat_summary(fun = mean, geom = "point", color = "purple1", shape = 18, size = 1) +
+    
     labs(title = plot_title,
          x = x_lab,
          y = y_lab) +
-    theme_minimal() +
+    
+    # Use base_size = 8 and then reduce title to 8 pt as well
+    theme_minimal(base_size = 8) +
+    
     scale_fill_manual(values = colors, breaks = model_names) +
+    
     theme(
-      plot.background = element_rect(fill = "white", color = NA),  
-      panel.background = element_rect(fill = "white", color = NA),
-      axis.text.x = element_text(angle = 45, hjust = 1)
+      plot.background   = element_rect(fill = "white", color = NA),
+      panel.background  = element_rect(fill = "white", color = NA),
+      
+      # Title: bold but only 8 pt
+      plot.title        = element_text(face = "bold", size = 7, hjust = 0.5, vjust = 1),
+      
+      # Axis labels: bold, 8 pt
+      axis.title        = element_text(face = "bold", size = 8),
+      
+      # Axis tick labels: 6 pt
+      axis.text         = element_text(size = 6),
+      
+      # X-axis tick labels rotated and 6 pt
+      axis.text.x       = element_text(angle = 45, hjust = 1, size = 6),
+      
+      # Legend text and title: 6 pt
+      legend.text       = element_text(size = 6),
+      legend.title      = element_text(size = 6),
+      
+      # Trim margins to save space
+      plot.margin       = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt")
     )
   
-  if(!no_legend){
-    p_out <- p_out +  
-      theme(
-        legend.background = element_rect(fill = "white", color = NA),
-        plot.title = element_text(
-          face = "bold",
-          hjust = 0.5,
-          vjust = 1
-        )
-      )
+  if (no_legend) {
+    p_out <- p_out + theme(legend.position = "none")
   } else {
-    p_out <- p_out +  
-      theme(
-        legend.position = "none",
-        plot.title = element_text(
-          face = "bold",
-          hjust = 0.5,
-          vjust = 1
-        )
-      )
+    p_out <- p_out + theme(
+      legend.background = element_rect(fill = "white", color = NA)
+    )
   }
   
   return(p_out)
@@ -634,7 +647,7 @@ brazil_states_full <- c(
 # both
 df1 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
 
-df_t <- generate_Prediction("RO", K = 10, compare_length = 5, save = F)
+df_t <- generate_Prediction("AC", K = 15, compare_length = 1, save = F, if_test = T)
 #brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
 temp <- df1 |>
@@ -717,6 +730,31 @@ get_Metrics <- function(y_fitted, y, IF_log = FALSE) {
   return(metrics)
 }
 
+highlight_values <- function(df, type = c("min", "max"), n = 1) {
+  type <- match.arg(type)
+  if (!(n %in% c(1, 2))) stop("n must be either 1 or 2")
+  
+  apply(df, 1, function(x) {
+    if (type == "min") {
+      values <- sort(x, na.last = NA)
+    } else if (type == "max") {
+      values <- sort(x, decreasing = TRUE, na.last = NA)
+    }
+    
+    target_vals <- values[1:n]
+    
+    sapply(x, function(y) {
+      if (!is.na(y) && y == target_vals[1]) {
+        paste0("\\textcolor{red}{", y, "}")
+      } else if (n == 2 && !is.na(y) && y == target_vals[2]) {
+        paste0("\\textcolor{blue}{", y, "}")
+      } else {
+        y
+      }
+    })
+  }) %>% t() %>% as.data.frame()
+}
+
 create_latex_tables <- function(real_time_list, brazil_states_full,
                                 num_of_models = 5, num_of_CI = 4,
                                 latex_code = TRUE) {
@@ -753,13 +791,15 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
   metrics_df$WD_50 <- metrics_df$WD_50[, -c((num_of_CI ) : num_of_models)]
   metrics_df$sMIS <- metrics_df$sMIS[, -c((num_of_CI) : num_of_models)]
   metrics_df$logScore <- metrics_df$logScore[, -c((num_of_CI) : num_of_models)]
+  metrics_df$CR <- cbind(metrics_df$CR_95,metrics_df$CR_50)
+  colnames(metrics_df$CR) <- c("DCGT", "DC", "GT", "DCGT", "DC", "GT")
   
   if(latex_code){
     # Generate LaTeX tables
     latex_tables <- list()
     for (name in names(metrics_df)) {
       df <- metrics_df[[name]]
-      if (name == "CR") {
+      if (name == "CR_95" | name == "CR_50") {
         df_highlighted <- highlight_values(df, type = "max", n = 1)
       } else {
         df_highlighted <- highlight_values(df, type = "min", n = 2)
@@ -772,13 +812,98 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
     return(metrics_df)
   }
 }
-create_latex_tables(real_time_list, brazil_states_full)
+create_latex_tables(real_time_list, brazil_states_full, latex_code = T)
 
-
+####################################################
+# new latex table function for CR
+create_latex_tables <- function(real_time_list, brazil_states_full,
+                                num_of_models = 5, num_of_CI = 4,
+                                latex_code = TRUE,
+                                if_combine_Intervals = FALSE) {
+  metrics <- c("RMSE", "MAE", "RMSPE", "MAPE", 
+               "CR_95", "WD_95", "CR_50", "WD_50",
+               "sMIS", "logScore")
+  models <- unique(real_time_list[[1]]$Models)
+  
+  # Initialize data frames for each metric
+  metrics_df <- list()
+  for (metric in metrics) {
+    metrics_df[[metric]] <- data.frame(matrix(
+      ncol = length(models), nrow = length(brazil_states_full)
+    ))
+    colnames(metrics_df[[metric]]) <- models
+    rownames(metrics_df[[metric]]) <- brazil_states_full
+  }
+  
+  # Fill data frames with the appropriate metrics
+  for (state in brazil_states_full) {
+    data <- real_time_list[[state]]
+    for (metric in metrics) {
+      metrics_df[[metric]][state, ] <- data[[metric]]
+    }
+  }
+  
+  # Round data
+  metrics_df <- lapply(metrics_df, function(df) {
+    df %>% mutate(across(where(is.numeric), ~ round(., 2)))
+  })
+  
+  # Remove specific columns from CR and WD (All NAs)
+  rm_cols <- seq(num_of_CI, num_of_models)
+  for (m in c("CR_95", "WD_95", "CR_50", "WD_50", "sMIS", "logScore")) {
+    metrics_df[[m]] <- metrics_df[[m]][, -rm_cols, drop = FALSE]
+  }
+  
+  if (latex_code) {
+    latex_tables <- list()
+    # Optionally combine intervals
+    if (if_combine_Intervals) {
+      # Combine CR and WD tables: suffix with interval
+      cr_df <- cbind(metrics_df$CR_95, metrics_df$CR_50)
+      wd_df <- cbind(metrics_df$WD_95, metrics_df$WD_50)
+      colnames(cr_df) <- c(paste0(colnames(metrics_df$CR_95), "_95"),
+                           paste0(colnames(metrics_df$CR_50), "_50"))
+      colnames(wd_df) <- c(paste0(colnames(metrics_df$WD_95), "_95"),
+                           paste0(colnames(metrics_df$WD_50), "_50"))
+      metrics_df$CR <- cr_df
+      metrics_df$WD <- wd_df
+      # Remove old entries
+      metrics_df <- metrics_df[!names(metrics_df) %in% c("CR_95", "CR_50", "WD_95", "WD_50")]
+    }
+    
+    for (name in names(metrics_df)) {
+      df <- metrics_df[[name]]
+      # Highlight rules
+      if (if_combine_Intervals && name == "CR") {
+        # split into 95 and 50 groups
+        ngrp <- ncol(df) / 2
+        df95 <- df[, 1:ngrp]
+        df50 <- df[, (ngrp + 1):(2 * ngrp)]
+        h95 <- highlight_values(df95, type = "max", n = 1)
+        h50 <- highlight_values(df50, type = "max", n = 1)
+        df_highlighted <- cbind(h95, h50)
+      } else if (grepl("CR|WD", name)) {
+        df_highlighted <- highlight_values(df, type = "max", n = 1)
+      } else {
+        df_highlighted <- highlight_values(df, type = "min", n = 2)
+      }
+      # Create LaTeX table
+      tbl <- xtable(df_highlighted, caption = paste(toupper(name), "Comparison"))
+      latex_tables[[name]] <- print(
+        tbl, sanitize.text.function = identity,
+        comment = FALSE, include.rownames = TRUE
+      )
+    }
+    return(latex_tables)
+  } else {
+    return(metrics_df)
+  }
+}
+xtable(create_latex_tables(real_time_list, brazil_states_full, if_combine_Intervals = T))
 
 ###################### boxplot ######################
-model_preds_p <- temp %>% select(True, DCGT_pred, DC_pred, prediction, cases_est_id, Naive, uf) %>%
-  rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = prediction, InfoDengue = cases_est_id) %>%
+model_preds_p <- temp %>% select(True, DCGT_pred, DC_pred, GT_prediction, cases_est_id, Naive, uf) %>%
+  rename(Real_value = True, DCGT = DCGT_pred, DC = DC_pred, GT = GT_prediction, InfoDengue = cases_est_id) %>%
   as.data.frame()
 head(model_preds_p)
 
@@ -818,6 +943,16 @@ ggsave(
   dpi = 300                          # DPI
 )
 
+ggsave(
+  filename = "Fig 4.eps",
+  plot     = boxp,
+  device   = cairo_ps,      # or "eps"
+  width    = 7.5,             # inches
+  height   = 8.5,             # inches
+  units    = "in",
+  dpi      = 300
+)
+
 ###################### BR states MAP ######################
 library(ggplot2)
 library(sf)
@@ -849,36 +984,36 @@ states_with_arrows_3 <- c("MS", "SC", "RS")
 states_with_arrows_4 <- c("DF", "ES", "RJ")
 
 # Create the plot
-ggplot(data = brazil_states) +
+BR_map <- ggplot(data = brazil_states) +
   geom_sf(fill = "white", color = "black") +  # Draw state boundaries
   geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2, 
                                                         states_with_arrows_3, states_with_arrows_4)), 
             aes(x = centroid_long, y = centroid_lat, label = name), 
-            color = "black", size = 4.5) +  # Add state names directly at centroid for states not in any arrow lists
+            color = "black", size = 2.5) +  # Add state names directly at centroid for states not in any arrow lists
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1), 
                aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for states_with_arrows_1
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1), 
             aes(x = -34, y = centroid_lat, label = name), 
-            color = "black", size = 4.5, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
+            color = "black", size = 2.5, hjust = -0.1) +  # Add state names near arrows for states_with_arrows_1
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2), 
                aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2), 
             aes(x = -40, y = -1.3, label = name), 
-            color = "black", size = 4.5, hjust = -0.1) +  
+            color = "black", size = 2.5, hjust = -0.1) +  
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3), 
                aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3), 
-            aes(x = -73, y = centroid_lat, label = name), 
-            color = "black", size = 4.5, hjust = -0.1) +  
+            aes(x = -70, y = centroid_lat, label = name), 
+            color = "black", size = 2.5, hjust = -0.1) +  
   geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4), 
                aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat), 
                color = "grey", arrow = arrow(length = unit(0.2, "cm"))) + 
   geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4), 
             aes(x = -38, y = centroid_lat, label = name), 
-            color = "black", size = 4.5, hjust = -0.1) +  
+            color = "black", size = 2.5, hjust = -0.1) +  
   theme_minimal() +
   theme(
     panel.background = element_blank(),      # Remove background of the plot panel
@@ -891,139 +1026,218 @@ ggplot(data = brazil_states) +
     panel.border = element_blank()
   )+
   labs(title = NULL, x = "Longitude", y = "Latitude")
+rownames(metric_table)
 
+
+ggsave(
+  filename = "Fig 2.eps",
+  plot     = BR_map,
+  device   = cairo_ps,      # or "eps"
+  width    = 7.5,             # inches
+  height   = 5,             # inches
+  units    = "in",
+  dpi      = 300
+)
 #################################################################
 ###################### BR states for model ######################
 #################################################################
-metrcis_plot <- function(metric_table){
-  # Get Brazil state boundaries data
+metrcis_plot <- function(metric_table, if_short_name = TRUE, show_legend = TRUE,plot_title = NULL) {
+  # Load Brazil states
   brazil_states <- ne_states(country = "Brazil", returnclass = "sf")
   
-  # Set specific rows to avoid the output being a list
-  metric_table[c(8),] <- c(2, 2, 2, 1, 2)
-  # metric_table[c(23),] <- c(2, 2, 2, 1, 2)
+  # Handle non-comparable placeholder
+  metric_table[c(8), ] <- c(2, 2, 2, 1, 2)
   
-  # Find the column names with the minimum value for each row
+  # Determine best models
   best_models <- apply(metric_table, 1, function(row) {
     colnames(metric_table)[which.min(row)]
   })
   best_models[8] <- "Non-comparable"
-  # best_models[23] <- "Non-comparable"
   
-  # Create a data frame with state names and corresponding models
-  best_models$Brazil <- "Non-comparable"
+  # Prepare state-model mapping
   states_models <- data.frame(
     name = rownames(metric_table),
     best_models = unlist(best_models, use.names = FALSE),
     stringsAsFactors = FALSE
   )
-  
-  # Rearrange the order
+  # Align with spatial data order
   states_models <- states_models[match(brazil_states$name, states_models$name), ]
-  rownames(states_models) <- NULL
-  
-  # Assign models to Brazil states
   brazil_states$model <- states_models$best_models
   
-  # Ensure geometry is valid
+  # Ensure valid geometry and centroids
   brazil_states <- st_make_valid(brazil_states)
-  state_centers <- st_centroid(brazil_states)
-  
-  # Set central coordinates
-  state_coords <- st_coordinates(state_centers)
+  centers <- st_centroid(brazil_states)
+  coords <- st_coordinates(centers)
   
   brazil_states <- brazil_states %>%
     mutate(
-      centroid_long = state_coords[, 1],
-      centroid_lat = state_coords[, 2],
-      postal = as.character(postal),  # Ensure state abbreviations are characters
-      name = as.character(name)  # Ensure state names are characters
+      centroid_long = coords[, 1],
+      centroid_lat  = coords[, 2],
+      postal        = as.character(postal),
+      name          = as.character(name),
+      label_name    = if (if_short_name) postal else name
     )
   
-  # Define states with different arrow operations
+  # Define arrow groups
   states_with_arrows_1 <- c("PB", "PE", "AL", "SE")
   states_with_arrows_2 <- c("RN")
   states_with_arrows_3 <- c("MS", "SC", "RS")
   states_with_arrows_4 <- c("DF", "ES", "RJ")
   
-  # Create the plot
-  p <- ggplot(data = brazil_states) +
-    geom_sf(aes(fill = model), color = "black") +  # Draw state boundaries
-    geom_text(data = filter(brazil_states, !postal %in% c(states_with_arrows_1, states_with_arrows_2,
-                                                          states_with_arrows_3, states_with_arrows_4)),
-              aes(x = centroid_long, y = centroid_lat, label = name),
-              color = "black", size = 5) +  # Add state names at centroids
-    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_1),
-                 aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
-                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +  # Add arrows for specific states
-    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_1),
-              aes(x = -34, y = centroid_lat, label = name),
-              color = "black", size = 5, hjust = -0.1) +  # Add state names near arrows
-    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_2),
-                 aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat),
-                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
-    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_2),
-              aes(x = -40, y = -1.3, label = name),
-              color = "black", size = 5, hjust = -0.1) +
-    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_3),
-                 aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
-                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
-    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_3),
-              aes(x = -73, y = centroid_lat, label = name),
-              color = "black", size = 5, hjust = -0.1) +
-    geom_segment(data = filter(brazil_states, postal %in% states_with_arrows_4),
-                 aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
-                 color = "grey", arrow = arrow(length = unit(0.2, "cm"))) +
-    geom_text(data = filter(brazil_states, postal %in% states_with_arrows_4),
-              aes(x = -38, y = centroid_lat, label = name),
-              color = "black", size = 5, hjust = -0.1) +
-    scale_fill_manual(values = c("DCGT" = "chartreuse2", "DC" = "deepskyblue2", "GT" = "brown3",
-                                 "InfoDengue" = "darkorange", "Naive" = "cornsilk2", "Non-comparable" = "white"),
-                      name = "Best Model", 
-                      labels = c("DCGT" = "DCGT")) +
+  # Base plot
+  p <- ggplot(brazil_states) +
+    geom_sf(aes(fill = model), color = "black") +
+    # central labels
+    geom_text(
+      data = filter(brazil_states, !postal %in% c(states_with_arrows_1,
+                                                  states_with_arrows_2,
+                                                  states_with_arrows_3,
+                                                  states_with_arrows_4)),
+      aes(x = centroid_long, y = centroid_lat, label = label_name),
+      size = 2
+    ) +
+    # arrowed labels group 1
+    geom_segment(
+      data = filter(brazil_states, postal %in% states_with_arrows_1),
+      aes(x = -34, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+      color = "grey", arrow = arrow(length = unit(0.2, "cm"))
+    ) +
+    geom_text(
+      data = filter(brazil_states, postal %in% states_with_arrows_1),
+      aes(x = -34, y = centroid_lat, label = label_name),
+      size = 1.5, hjust = -0.1
+    ) +
+    # arrowed labels group 2
+    geom_segment(
+      data = filter(brazil_states, postal %in% states_with_arrows_2),
+      aes(x = -36, y = -2, xend = centroid_long, yend = centroid_lat),
+      color = "grey", arrow = arrow(length = unit(0.2, "cm"))
+    ) +
+    geom_text(
+      data = filter(brazil_states, postal %in% states_with_arrows_2),
+      aes(x = -36, y = -1.3, label = label_name),
+      size = 2, hjust = -0.1
+    ) +
+    # arrowed labels group 3
+    geom_segment(
+      data = filter(brazil_states, postal %in% states_with_arrows_3),
+      aes(x = -60, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+      color = "grey", arrow = arrow(length = unit(0.2, "cm"))
+    ) +
+    geom_text(
+      data = filter(brazil_states, postal %in% states_with_arrows_3),
+      aes(x = -63, y = centroid_lat, label = label_name),
+      size = 2, hjust = -0.1
+    ) +
+    # arrowed labels group 4
+    geom_segment(
+      data = filter(brazil_states, postal %in% states_with_arrows_4),
+      aes(x = -38, y = centroid_lat, xend = centroid_long, yend = centroid_lat),
+      color = "grey", arrow = arrow(length = unit(0.2, "cm"))
+    ) +
+    geom_text(
+      data = filter(brazil_states, postal %in% states_with_arrows_4),
+      aes(x = -38, y = centroid_lat, label = label_name),
+      size = 2, hjust = -0.1
+    ) +
+    scale_fill_manual(
+      values = c(
+        "DCGT" = "chartreuse2", "DC" = "deepskyblue2",
+        "GT"   = "brown3",      "InfoDengue" = "darkorange",
+        "Naive"= "cornsilk2",   "Non-comparable" = "white"
+      ),
+      name   = "Best Model"
+    ) +
+    labs(title = plot_title) +
     theme_minimal() +
-    labs(title = NULL, x = "Longitude", y = "Latitude") +
     theme(
-      panel.background = element_blank(),      # Remove background of the plot panel
-      panel.grid.major = element_blank(),       # Remove major grid lines
-      panel.grid.minor = element_blank(),       # Remove minor grid lines
-      plot.background = element_blank(),        # Remove background of the entire plot
-      axis.text = element_blank(),              # Remove axis text
-      axis.title = element_blank(),             # Remove axis titles
-      axis.ticks = element_blank(),             # Remove axis ticks
-      panel.border = element_blank()
-    ) 
+      plot.title       = element_text(  # customize title appearance
+        hjust = 0.5,     # center horizontally
+        face  = "bold",  # make it bold
+        size  = 12       # adjust font size as needed
+      ),
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.text        = element_blank(),
+      axis.title       = element_blank(),
+      axis.ticks       = element_blank()
+    )
+  
+  # Optionally hide legend
+  if (!show_legend) {
+    p <- p +
+      guides(fill = FALSE) +                     # disable the fill legend guide entirely
+      theme(legend.position = "none")             # also hide any remaining legend panel
+  }
+  
+  return(p)
 }
 
 # Use MAE data frame
-mae_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAE
-mae <- metrcis_plot(mae_df)
-
-mape_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAPE
-mape <- metrcis_plot(mape_df)
-
+# mae_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAE
+# mae <- metrcis_plot(mae_df)
+# 
+# mape_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$MAPE
+# mape <- metrcis_plot(mape_df)
 rmse_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$RMSE
-rmse <- metrcis_plot(rmse_df)
 
 rmspe_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$RMSPE
-rmspe <- metrcis_plot(rmspe_df)
 
-# Save in a higher resolution
-plots <- list(mae, mape, rmse, rmspe)
-filenames <- c("map_br_model_mae.png", "map_br_model_mape.png", "map_br_model_rmse.png", "map_br_model_rmspe.png")
+logScore_df <- create_latex_tables(real_time_list, brazil_states_full, latex_code = F)$logScore
 
-# Loop to save the plots
-for (i in 1:length(plots)) {
-  ggsave(
-    filename = filenames[i],           # file name
-    plot = plots[[i]],                 # object to save
+library(patchwork)
+
+# generate both plots without their own legends
+rmse_map   <- metrcis_plot(rmse_df, plot_title = "RMSE",   show_legend = TRUE)  # enable legend here
+rmspe_map  <- metrcis_plot(rmspe_df,  plot_title = "RMSPE", show_legend = FALSE) # disable legend
+logScore_map <- metrcis_plot(logScore_df, plot_title = "logscore", show_legend = FALSE) # disable legend
+
+# now re-draw one of them with its legend at the bottom…
+legend_map <- metrcis_plot(rmse_df, show_legend = TRUE) +
+  theme(legend.position = "bottom")
+
+# and combine, collecting that single legend
+best_each_states <- (rmse_map + rmspe_map + logScore_map) +
+  plot_layout(ncol = 3, guides = "collect") &
+  theme(legend.position = "bottom")
+
+ggsave(
+    filename = "map_br_best_model_rmse_rmspe_logscore.png",           # file name
+    plot = best_each_states,                 # object to save
     path = "/Users/xiaoy0a/Desktop/Task/Nowcasting/7. Slides/",  # save dir
-    width = 12,                        # width
-    height = 8,                        # height
+    width = 14,                        # width
+    height = 12,                        # height
     units = "in",                      # size, "in", "cm", "mm"
     dpi = 300                          # DPI
   )
-}
+
+ggsave(
+  filename = "Fig 5.eps",
+  plot     = best_each_states,
+  device   = cairo_ps,      # or "eps"
+  width    = 7.5,             # inches
+  height   = 7,             # inches
+  units    = "in",
+  dpi      = 300
+)
+# Save in a higher resolution
+# plots <- list(rmse, rmspe)
+# filenames <- c("map_br_model_mae.png", "map_br_model_mape.png", "map_br_model_rmse.png", "map_br_model_rmspe.png")
+# filenames <- c("map_br_model_rmse.png", "map_br_model_rmspe.png")
+
+# Loop to save the plots
+# for (i in 1:length(plots)) {
+#   ggsave(
+#     filename = filenames[i],           # file name
+#     plot = plots[[i]],                 # object to save
+#     path = "/Users/xiaoy0a/Desktop/Task/Nowcasting/7. Slides/",  # save dir
+#     width = 12,                        # width
+#     height = 6,                        # height
+#     units = "in",                      # size, "in", "cm", "mm"
+#     dpi = 300                          # DPI
+#   )
+# }
 
 # temp$err_pred <- abs(temp$prediction - temp$True)
 # temp$err_infodengue <- abs(temp$cases_est_id - temp$True)
