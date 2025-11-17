@@ -194,7 +194,7 @@ generate_Prediction <- function(ufs, K = 15, compare_length = 1, year_window = 3
                                 gamma = c(0.95,0.5), if_test = FALSE) {
   final_df <- data.frame()
    epi_weeks <- c(seq(202410, 202452, by = 1), seq(202501, 202518, by = 1))
-   #epi_weeks <- seq(202410, 202427, by = 1)
+   #epi_weeks <- seq(202410, 202433, by = 1)
   
   if(if_test){
     pvalue_mat <- matrix(data = NA, nrow = length(brazil_ufs) , ncol = length(epi_weeks) - K)
@@ -593,7 +593,7 @@ get_Boxplot <- function(data,
          y = y_lab) +
     
     # Use base_size = 8 and then reduce title to 8 pt as well
-    theme_minimal(base_size = 8) +
+    theme_minimal(base_size = 10) +
     
     scale_fill_manual(values = colors, breaks = model_names) +
     
@@ -602,20 +602,20 @@ get_Boxplot <- function(data,
       panel.background  = element_rect(fill = "white", color = NA),
       
       # Title: bold but only 8 pt
-      plot.title        = element_text(face = "bold", size = 7, hjust = 0.5, vjust = 1),
+      plot.title        = element_text(face = "bold", size = 14, hjust = 0.5, vjust = 1),
       
       # Axis labels: bold, 8 pt
-      axis.title        = element_text(face = "bold", size = 8),
+      axis.title        = element_text(face = "bold", size = 14),
       
       # Axis tick labels: 6 pt
-      axis.text         = element_text(size = 6),
+      axis.text         = element_text(size = 12),
       
       # X-axis tick labels rotated and 6 pt
-      axis.text.x       = element_text(angle = 45, hjust = 1, size = 6),
+      axis.text.x       = element_text(angle = 45, hjust = 1, size = 12),
       
       # Legend text and title: 6 pt
-      legend.text       = element_text(size = 6),
-      legend.title      = element_text(size = 6),
+      legend.text       = element_text(size = 9),
+      legend.title      = element_text(size = 9),
       
       # Trim margins to save space
       plot.margin       = margin(t = 5, r = 5, b = 5, l = 5, unit = "pt")
@@ -632,6 +632,7 @@ get_Boxplot <- function(data,
   return(p_out)
 }
 
+
 brazil_states_full <- c(
   "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará", "Distrito Federal", 
   "Espírito Santo", "Goiás", "Maranhão", "Mato Grosso", "Mato Grosso do Sul", 
@@ -641,16 +642,14 @@ brazil_states_full <- c(
   #"Brazil"
 )
 # dengue
-# df <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
-#sintomas dengue
-# df2 <- generate_Prediction(brazil_ufs, K = 10, compare_length = 5, save = F)
-# both
-df1 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F)
 
-df_t <- generate_Prediction("AC", K = 15, compare_length = 1, save = F, if_test = T)
+# df1 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F, year_window = 1)
+# df2 <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F, year_window = 2)
+
+df <- generate_Prediction(brazil_ufs, K = 15, compare_length = 5, save = F, year_window = 3)
 #brazil_ufs <- c("AC")
 ## ERROR QUANTIFICATION
-temp <- df1 |>
+temp <- df |>
   group_by(ew_pred, uf) |>
   filter(ew == max(ew)) |>
   ungroup()
@@ -755,6 +754,38 @@ highlight_values <- function(df, type = c("min", "max"), n = 1) {
   }) %>% t() %>% as.data.frame()
 }
 
+highlight_values_ci <- function(df, nominal = 0.95) {
+  result <- apply(df, 1, function(x) {
+    diffs <- abs(x - nominal)
+    
+    valid_idx <- which(!is.na(x))
+    if (length(valid_idx) == 0) {
+      return(rep(NA, length(x)))
+    }
+    
+    min_diff <- min(diffs[valid_idx])
+    closest_idx <- which(diffs == min_diff)
+    closest_vals <- x[closest_idx]
+    best_val <- max(closest_vals, na.rm = TRUE)
+    same_as_best <- which(x == best_val & abs(x - nominal) == min_diff)
+    
+    sapply(seq_along(x), function(i) {
+      if (!is.na(x[i]) && i %in% same_as_best) {
+        paste0("\\textcolor{red}{", x[i], "}")
+      } else {
+        x[i]
+      }
+    })
+  }) %>% t() %>% as.data.frame()
+  
+  colnames(result) <- colnames(df)
+  rownames(result) <- rownames(df)
+  
+  return(result)
+}
+
+
+
 create_latex_tables <- function(real_time_list, brazil_states_full,
                                 num_of_models = 5, num_of_CI = 4,
                                 latex_code = TRUE) {
@@ -799,8 +830,10 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
     latex_tables <- list()
     for (name in names(metrics_df)) {
       df <- metrics_df[[name]]
-      if (name == "CR_95" | name == "CR_50") {
-        df_highlighted <- highlight_values(df, type = "max", n = 1)
+      if (name == "CR_50") {
+        df_highlighted <- highlight_values_ci(df, nominal = 0.50)
+      } else if (name == "CR_95"){
+        df_highlighted <- highlight_values_ci(df, nominal = 0.95)
       } else {
         df_highlighted <- highlight_values(df, type = "min", n = 2)
       }
@@ -879,11 +912,15 @@ create_latex_tables <- function(real_time_list, brazil_states_full,
         ngrp <- ncol(df) / 2
         df95 <- df[, 1:ngrp]
         df50 <- df[, (ngrp + 1):(2 * ngrp)]
-        h95 <- highlight_values(df95, type = "max", n = 1)
-        h50 <- highlight_values(df50, type = "max", n = 1)
+        h95 <- highlight_values_ci(df95, nominal = 0.95)
+        h50 <- highlight_values_ci(df50, nominal = 0.5)
         df_highlighted <- cbind(h95, h50)
-      } else if (grepl("CR|WD", name)) {
+      } else if (grepl("WD", name)) {
         df_highlighted <- highlight_values(df, type = "max", n = 1)
+      } else if (grepl("CR_95", name)) {
+        df_highlighted <- highlight_values_ci(df, nominal = 0.95)
+      } else if (grepl("CR_50", name)) {
+        df_highlighted <- highlight_values_ci(df, nominal = 0.50)
       } else {
         df_highlighted <- highlight_values(df, type = "min", n = 2)
       }
