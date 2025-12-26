@@ -3,7 +3,8 @@ library(stringr)
 
 plot_geofacet_series <- function(merged_data, K = 15) {
   data <- merged_data |> filter(ew_start >= as.Date("2023-12-25"))
-  data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
+  data$day <- data$ew_start
+  #data$day <- as.Date(format(data$ew_start,"%d/%m"), "%d/%m")
   #date_no_delay <- data[nrow(data) - K, ]$ew_start
   
   data <- data |> mutate_all(~ pmax(., 0))
@@ -72,15 +73,36 @@ plot_geofacet_series <- function(merged_data, K = 15) {
     theme(strip.text = element_text(face="bold", size=5.5))
 }
 
-# df_plot <- generate_Prediction(brazil_ufs, K = 15, compare_length = 1, save = F)
+df_plot_original <- generate_Prediction(brazil_ufs, K = 10, compare_length = 1, save = F, year_window = 3)
+pred_trend_out_original <- plot_geofacet_series(df_plot_original)
+ggsave(
+  filename = "Fig 5_orig.eps",
+  plot     = pred_trend_out_original,
+  device   = cairo_ps,      # or "eps"
+  width    = 7.5,             # inches
+  height   = 8.75,             # inches
+  units    = "in",
+  dpi      = 300
+)
 
-pred_trend_out <- plot_geofacet_series(df_plot)
+pred_trend_out <- plot_geofacet_series(df1)
+
+ggsave(
+  filename = "Fig 5.png",
+  plot     = pred_trend_out,
+  #device   = cairo_ps,      # or "eps"
+  width    = 7.5,             # inches
+  height   = 8.75,             # inches
+  units    = "in",
+  dpi      = 300
+)
+
 ggsave(
   filename = "Fig 6.eps",
   plot     = pred_trend_out,
   device   = cairo_ps,      # or "eps"
-  width    = 7.5,             # inches
-  height   = 8.75,             # inches
+  width    = 10,             # inches
+  height   = 8,             # inches
   units    = "in",
   dpi      = 300
 )
